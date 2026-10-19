@@ -20,6 +20,7 @@ export const subjects = pgTable('subjects', {
   name: text('name').notNull(),
   description: text('description'),
   program: text('program'),
+  fceiaSubjectId: integer('fceiaSubjectId'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
@@ -31,6 +32,7 @@ export const materials = pgTable('materials', {
   kind: text('kind').notNull().default('apunte'),
   content: text('content').notNull(),
   sourceName: text('sourceName'),
+  externalKey: text('externalKey'),
   chunkCount: integer('chunkCount').notNull().default(0),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })

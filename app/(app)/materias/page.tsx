@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { desc, eq, sql } from 'drizzle-orm'
 import { Library } from 'lucide-react'
+import { createSubjectFromPreset } from '@/app/actions/fceia'
 import { createSubject } from '@/app/actions/subjects'
+import { FceiaPicker } from '@/components/fceia-picker'
 import { SubmitButton } from '@/components/submit-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +13,14 @@ import { requireUser } from '@/lib/session'
 
 export const metadata = { title: 'Mis materias - Cuaderno' }
 
-export default async function SubjectsPage() {
+export const maxDuration = 300
+
+export default async function SubjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const { error } = await searchParams
   const user = await requireUser()
 
   const list = await db
@@ -50,6 +59,29 @@ export default async function SubjectsPage() {
         </div>
         <SubmitButton pendingLabel="Creando…">Crear materia</SubmitButton>
       </form>
+
+      {error && (
+        <p role="alert" className="rounded-xl border border-destructive/40 p-4 text-sm">
+          {error.slice(0, 300)}
+        </p>
+      )}
+
+      <section aria-labelledby="preset-heading" className="flex flex-col gap-3">
+        <div>
+          <h2 id="preset-heading" className="text-lg font-semibold">
+            O importá una materia de la FCEIA
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Elegí tu carrera y materia: traemos el programa, apuntes, exámenes anteriores y
+            bibliografía oficiales.
+          </p>
+        </div>
+        <FceiaPicker
+          action={createSubjectFromPreset}
+          submitLabel="Crear e importar materia"
+          pendingLabel="Importando desde la FCEIA… puede tardar un minuto"
+        />
+      </section>
 
       {list.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">

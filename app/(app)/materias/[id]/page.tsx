@@ -2,8 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { ArrowLeft, ListChecks, Route, Trash2 } from 'lucide-react'
+import { importFromPreset } from '@/app/actions/fceia'
 import { deleteMaterial } from '@/app/actions/materials'
 import { deleteSubject } from '@/app/actions/subjects'
+import { FceiaPicker } from '@/components/fceia-picker'
 import { GenerateRoadmapForm } from '@/components/generate-roadmap-form'
 import { MaterialForm } from '@/components/material-form'
 import { ProgramForm } from '@/components/program-form'
@@ -22,10 +24,10 @@ export default async function SubjectPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; notice?: string }>
 }) {
   const { id } = await params
-  const { error } = await searchParams
+  const { error, notice } = await searchParams
   const user = await requireUser()
 
   const [subject] = await db
@@ -92,6 +94,11 @@ export default async function SubjectPage({
             {error.slice(0, 300)}
           </p>
         )}
+        {notice && (
+          <p role="status" className="rounded-xl border border-primary/40 p-4 text-sm">
+            {notice.slice(0, 600)}
+          </p>
+        )}
       </div>
 
       <StepSection
@@ -120,6 +127,21 @@ export default async function SubjectPage({
         description="Subí libros y apuntes para sugerir dónde estudiar cada subtema, y guías o exámenes anteriores para ofrecer ejercicios."
         done={materialList.length > 0}
       >
+        <details className="rounded-xl border bg-card p-5" open={!subject.fceiaSubjectId && materialList.length === 0}>
+          <summary className="cursor-pointer text-sm font-medium">
+            {subject.fceiaSubjectId
+              ? 'Importada de la FCEIA · importar más contenido'
+              : 'Completar con contenido oficial de la FCEIA'}
+          </summary>
+          <div className="mt-4">
+            <FceiaPicker
+              action={importFromPreset}
+              subjectId={subject.id}
+              submitLabel="Importar desde la FCEIA"
+              pendingLabel="Importando desde la FCEIA… puede tardar un minuto"
+            />
+          </div>
+        </details>
         <MaterialForm subjectId={subject.id} />
         {materialList.length > 0 && (
           <ul className="flex flex-col gap-2">
