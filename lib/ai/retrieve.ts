@@ -3,9 +3,8 @@ import { embedMany } from 'ai'
 import { and, cosineDistance, eq, notInArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { chunks, materials } from '@/lib/db/schema'
+import { embeddingModel } from '@/lib/ai/provider'
 import { PRACTICE_KINDS, type Source } from '@/lib/types'
-
-export const EMBEDDING_MODEL = 'openai/text-embedding-3-small'
 
 const MIN_SCORE = 0.3
 const MAX_SOURCES = 2
@@ -13,7 +12,7 @@ const SNIPPET_LENGTH = 320
 
 export async function embedTexts(values: string[]): Promise<number[][]> {
   if (values.length === 0) return []
-  const { embeddings } = await embedMany({ model: EMBEDDING_MODEL, values })
+  const { embeddings } = await embedMany({ model: embeddingModel, values })
   return embeddings
 }
 

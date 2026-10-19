@@ -1,9 +1,7 @@
 import 'server-only'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
-
-const STRUCTURE_MODEL = 'anthropic/claude-sonnet-4.6'
-const EXERCISE_MODEL = 'anthropic/claude-haiku-4.5'
+import { exerciseModel, structureModel } from '@/lib/ai/provider'
 
 const topicsSchema = z.object({
   topics: z
@@ -41,7 +39,7 @@ export async function draftTopics(input: {
     .join('\n')
 
   const { output } = await generateText({
-    model: STRUCTURE_MODEL,
+    model: structureModel,
     output: Output.object({ schema: topicsSchema }),
     system: [
       'Sos un diseñador curricular. Convertís el programa de una materia universitaria en un mapa de aprendizaje con dependencias.',
@@ -108,7 +106,7 @@ export async function extractExercises(input: {
   catalog: CatalogEntry[]
 }): Promise<{ statement: string; subtopicIndex: number }[]> {
   const { output } = await generateText({
-    model: EXERCISE_MODEL,
+    model: exerciseModel,
     output: Output.object({ schema: exercisesSchema }),
     system: [
       'Extraés los ejercicios de una guía de práctica o de un examen de una materia universitaria.',
