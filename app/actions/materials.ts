@@ -6,8 +6,8 @@ import { redirect } from 'next/navigation'
 import { UserError, toUserMessage } from '@/lib/errors'
 import { db } from '@/lib/db'
 import { chunks, materials, subjects } from '@/lib/db/schema'
-import { embedTexts } from '@/lib/ai/retrieve'
-import { chunkText, extractTextFromFile } from '@/lib/ai/text'
+import { saveMaterial } from '@/lib/ai/ingest'
+import { extractDocumentFromFile } from '@/lib/ai/text'
 import { getUserId } from '@/lib/session'
 import { isMaterialKind } from '@/lib/types'
 
@@ -29,8 +29,10 @@ export async function addMaterial(formData: FormData) {
       .where(and(eq(subjects.id, subjectId), eq(subjects.userId, userId)))
     if (!subject) throw new UserError('Materia no encontrada.')
 
-    const content = hasFile ? await extractTextFromFile(file) : pastedText
-    if (!content) {
+    const document = hasFile
+      ? await extractDocumentFromFile(file)
+      : { text: pastedText, pages: null }
+    if (!document.text) {
       throw new UserError(
         'No pude extraer texto. Pegá el contenido o subí un PDF con texto seleccionable.',
       )
@@ -40,35 +42,16 @@ export async function addMaterial(formData: FormData) {
       String(formData.get('title') ?? '').trim() ||
       (hasFile ? file.name.replace(/\.[^.]+$/, '') : 'Sin título')
 
-    const pieces = chunkText(content)
-    if (pieces.length === 0) throw new UserError('El material es demasiado corto para indexarlo.')
-    const embeddings = await embedTexts(pieces)
-
-    await db.transaction(async (tx) => {
-      const [material] = await tx
-        .insert(materials)
-        .values({
-          userId,
-          subjectId,
-          title: title.slice(0, 160),
-          kind,
-          content,
-          sourceName: hasFile ? file.name : null,
-          chunkCount: pieces.length,
-        })
-        .returning({ id: materials.id })
-
-      await tx.insert(chunks).values(
-        pieces.map((piece, position) => ({
-          userId,
-          subjectId,
-          materialId: material.id,
-          position,
-          content: piece,
-          embedding: embeddings[position],
-        })),
-      )
+    const saved = await saveMaterial({
+      userId,
+      subjectId,
+      title,
+      kind,
+      text: document.text,
+      pages: document.pages,
+      sourceName: hasFile ? file.name : null,
     })
+    if (!saved) throw new UserError('El material es demasiado corto para indexarlo.')
   } catch (error) {
     errorMessage = toUserMessage(error, 'No pude indexar el material. Intentá de nuevo.')
   }

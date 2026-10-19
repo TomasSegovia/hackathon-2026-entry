@@ -8,11 +8,18 @@ import { PRACTICE_KINDS, type Source } from '@/lib/types'
 
 const MIN_SCORE = 0.3
 const MAX_SOURCES = 2
-const SNIPPET_LENGTH = 320
+const MAX_PAGES_PER_SOURCE = 4
+const EMBEDDING_BATCH = 100
 
 export async function embedTexts(values: string[]): Promise<number[][]> {
-  if (values.length === 0) return []
-  const { embeddings } = await embedMany({ model: embeddingModel, values })
+  const embeddings: number[][] = []
+  for (let start = 0; start < values.length; start += EMBEDDING_BATCH) {
+    const { embeddings: batch } = await embedMany({
+      model: embeddingModel,
+      values: values.slice(start, start + EMBEDDING_BATCH),
+    })
+    embeddings.push(...batch)
+  }
   return embeddings
 }
 
@@ -28,7 +35,7 @@ async function searchStudyMaterial(
       materialId: materials.id,
       materialTitle: materials.title,
       materialKind: materials.kind,
-      snippet: chunks.content,
+      page: chunks.page,
       score: similarity,
     })
     .from(chunks)
@@ -41,23 +48,37 @@ async function searchStudyMaterial(
       ),
     )
     .orderBy(sql`${similarity} desc`)
-    .limit(8)
+    .limit(14)
 
-  const bestPerMaterial = new Map<string, Source>()
+  const byMaterial = new Map<string, Source & { pages: number[] }>()
   for (const row of rows) {
     const score = Number(row.score)
-    if (score < MIN_SCORE || bestPerMaterial.has(row.materialId)) continue
-    bestPerMaterial.set(row.materialId, {
-      ...row,
-      score,
-      snippet: row.snippet.slice(0, SNIPPET_LENGTH),
-    })
+    if (score < MIN_SCORE) continue
+
+    let source = byMaterial.get(row.materialId)
+    if (!source) {
+      if (byMaterial.size >= MAX_SOURCES) continue
+      source = {
+        materialId: row.materialId,
+        materialTitle: row.materialTitle,
+        materialKind: row.materialKind,
+        pages: [],
+        score,
+      }
+      byMaterial.set(row.materialId, source)
+    }
+    if (row.page !== null && source.pages.length < MAX_PAGES_PER_SOURCE && !source.pages.includes(row.page)) {
+      source.pages.push(row.page)
+    }
   }
 
-  return [...bestPerMaterial.values()].slice(0, MAX_SOURCES)
+  return [...byMaterial.values()].map((source) => ({
+    ...source,
+    pages: [...source.pages].sort((a, b) => a - b),
+  }))
 }
 
-/** Finds, for each query, the theory fragments of the subject that best explain it. */
+/** Finds, for each query, the theory documents and pages of the subject that best explain it. */
 export async function findStudySources(
   userId: string,
   subjectId: string,

@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { desc, eq, sql } from 'drizzle-orm'
 import { Library } from 'lucide-react'
-import { createSubjectFromPreset } from '@/app/actions/fceia'
 import { createSubject } from '@/app/actions/subjects'
 import { FceiaPicker } from '@/components/fceia-picker'
 import { SubmitButton } from '@/components/submit-button'
@@ -76,11 +75,7 @@ export default async function SubjectsPage({
             bibliografía oficiales.
           </p>
         </div>
-        <FceiaPicker
-          action={createSubjectFromPreset}
-          submitLabel="Crear e importar materia"
-          pendingLabel="Importando desde la FCEIA… puede tardar un minuto"
-        />
+        <FceiaPicker submitLabel="Crear e importar materia" />
       </section>
 
       {list.length === 0 ? (

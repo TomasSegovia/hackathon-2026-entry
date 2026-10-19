@@ -1,6 +1,7 @@
 'use client'
 
 import type { KeyboardEvent, RefObject } from 'react'
+import { stripMath } from '@/lib/math'
 import { NODE_H, NODE_W, type RoadmapLayout } from '@/lib/roadmap/layout'
 import { STATUS_LABELS, type ProgressStatus, type TopicData } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -138,7 +139,8 @@ export function RoadmapGraph({
           topic.status === 'pending' &&
           topic.prerequisites.some((id) => topicById.get(id)?.status !== 'done')
         const selected = selectedId === node.id
-        const lines = wrapTitle(topic.title)
+        const plainTitle = stripMath(topic.title)
+        const lines = wrapTitle(plainTitle)
         const firstBaseline = lines.length === 1 ? 29 : 23
 
         return (
@@ -148,7 +150,7 @@ export function RoadmapGraph({
             role="button"
             tabIndex={0}
             aria-pressed={selected}
-            aria-label={`${topic.title}. ${STATUS_LABELS[topic.status]}. ${count.done} de ${count.total} subtemas vistos.${blocked ? ' Tiene temas previos pendientes.' : ''}`}
+            aria-label={`${plainTitle}. ${STATUS_LABELS[topic.status]}. ${count.done} de ${count.total} subtemas vistos.${blocked ? ' Tiene temas previos pendientes.' : ''}`}
             onClick={() => onSelect(node.id)}
             onKeyDown={(event) => handleKey(event, node.id)}
             className="group cursor-pointer outline-none"

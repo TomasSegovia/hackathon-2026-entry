@@ -43,6 +43,7 @@ export const chunks = pgTable('chunks', {
   subjectId: text('subjectId').notNull(),
   materialId: text('materialId').notNull(),
   position: integer('position').notNull(),
+  page: integer('page'),
   content: text('content').notNull(),
   embedding: vector('embedding', { dimensions: 1536 }).notNull(),
 })

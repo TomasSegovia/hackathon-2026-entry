@@ -24,7 +24,8 @@ export type Source = {
   materialId: string
   materialTitle: string
   materialKind: string
-  snippet: string
+  /** Pages of the document where the topic is covered; empty when the document has no pagination. */
+  pages?: number[]
   score: number
 }
 

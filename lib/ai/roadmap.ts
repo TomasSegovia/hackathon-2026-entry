@@ -50,6 +50,7 @@ export async function draftTopics(input: {
       '4. Nunca crees ciclos. Referenciá los prerrequisitos únicamente por su "key".',
       '5. Dividí cada tema en sus subtemas mínimos: cada uno debe poder aprenderse en una sola sesión de estudio (por ejemplo, en "Sistema binario": "Conversión decimal-binario", "Suma binaria", "Resta binaria").',
       '6. Respondé en el idioma del programa.',
+      '7. Los títulos de temas van en texto plano, sin fórmulas. En subtemas y resúmenes, escribí toda notación matemática en LaTeX entre signos de dólar ($x^2$ en línea, $$...$$ en bloque) y nunca como texto plano ni con símbolos sueltos.',
       'Usá la lista de materiales solo para ajustar nombres y nivel de detalle. No inventes temas que no estén en el programa.',
     ].join('\n'),
     prompt: [
@@ -113,6 +114,7 @@ export async function extractExercises(input: {
       'Cada ejercicio o inciso independiente es un elemento. Copiá el enunciado fielmente, sin resolverlo y sin agregar pistas.',
       'Asigná cada ejercicio al subtema del catálogo que representa el concepto principal que hay que dominar para resolverlo.',
       'Ignorá resoluciones, soluciones, encabezados y texto que no sea un ejercicio.',
+      'Reescribí toda fórmula o expresión matemática del enunciado en LaTeX entre signos de dólar ($x^2$ en línea, $$...$$ en bloque), reconstruyendo fracciones, potencias, sumatorias y símbolos que el texto extraído del PDF haya desarmado.',
     ].join(' '),
     prompt: [
       `Catálogo de subtemas:\n${input.catalog.map((entry) => `[${entry.index}] ${entry.label}`).join('\n')}`,

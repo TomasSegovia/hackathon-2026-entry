@@ -5,7 +5,31 @@ export const MAX_FILE_BYTES = 8 * 1024 * 1024
 
 const TEXT_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.tex']
 
-export async function extractTextFromFile(file: File): Promise<string> {
+export type ParsedDocument = {
+  text: string
+  /** Text of each page (index 0 is page 1); null when the format has no pagination. */
+  pages: string[] | null
+}
+
+export async function extractPdfPages(bytes: Uint8Array): Promise<string[]> {
+  const pdf = await getDocumentProxy(bytes)
+  const { text } = await extractText(pdf, { mergePages: false })
+  return text.map(normalize)
+}
+
+/** Keeps whole pages from the start until the character budget is reached. */
+export function truncatePages(pages: string[], maxChars: number): string[] {
+  const kept: string[] = []
+  let total = 0
+  for (const page of pages) {
+    if (kept.length > 0 && total + page.length > maxChars) break
+    kept.push(page)
+    total += page.length
+  }
+  return kept
+}
+
+export async function extractDocumentFromFile(file: File): Promise<ParsedDocument> {
   if (file.size > MAX_FILE_BYTES) {
     throw new Error('El archivo supera el límite de 8 MB.')
   }
@@ -13,16 +37,28 @@ export async function extractTextFromFile(file: File): Promise<string> {
   const name = file.name.toLowerCase()
 
   if (name.endsWith('.pdf') || file.type === 'application/pdf') {
-    const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()))
-    const { text } = await extractText(pdf, { mergePages: true })
-    return normalize(text)
+    const pages = await extractPdfPages(new Uint8Array(await file.arrayBuffer()))
+    return { text: pages.join('\n\n').trim(), pages }
   }
 
   if (file.type.startsWith('text/') || TEXT_EXTENSIONS.some((ext) => name.endsWith(ext))) {
-    return normalize(await file.text())
+    return { text: normalize(await file.text()), pages: null }
   }
 
   throw new Error('Formato no soportado todavía. Subí un PDF o un archivo de texto.')
+}
+
+export async function extractTextFromFile(file: File): Promise<string> {
+  return (await extractDocumentFromFile(file)).text
+}
+
+export type PageChunk = { content: string; page: number | null }
+
+/** Chunks every page on its own so each fragment maps to an exact page. */
+export function chunkPages(pages: string[]): PageChunk[] {
+  return pages.flatMap((text, index) =>
+    chunkText(text).map((content) => ({ content, page: index + 1 })),
+  )
 }
 
 function normalize(text: string) {

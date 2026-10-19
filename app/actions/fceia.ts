@@ -2,44 +2,39 @@
 
 import { and, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { subjects } from '@/lib/db/schema'
 import { UserError, toUserMessage } from '@/lib/errors'
 import { getOverview } from '@/lib/fceia/client'
-import { importPreset, type ImportOptions } from '@/lib/fceia/import'
+import { importBatch, type BatchResult } from '@/lib/fceia/import'
 import { getUserId } from '@/lib/session'
 
-function readFceiaSubjectId(formData: FormData) {
-  const value = Number(formData.get('fceiaSubjectId'))
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new UserError('Elegí una carrera y una materia de la lista.')
-  }
-  return value
+export type PresetBatchInput = {
+  subjectId: string
+  fceiaSubjectId: number
+  include: { program: boolean; materials: boolean; exams: boolean }
+  bibliographyIds: number[]
+  bookIds: number[]
+  skipKeys: string[]
+  initial: boolean
 }
 
-function readOptions(formData: FormData): ImportOptions {
-  const options = {
-    program: formData.get('program') === 'on',
-    materials: formData.get('materials') === 'on',
-    exams: formData.get('exams') === 'on',
-    bibliography: formData.get('bibliography') === 'on',
-  }
-  if (!Object.values(options).some(Boolean)) {
-    throw new UserError('Elegí al menos un tipo de contenido para importar.')
-  }
-  return options
+type ActionResult<T> = ({ ok: true } & T) | { ok: false; error: string }
+
+function validId(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
-export async function createSubjectFromPreset(formData: FormData) {
-  const userId = await getUserId()
-  let subjectId: string | null = null
-  let notice: string | null = null
-  let errorMessage: string | null = null
+function idList(value: unknown) {
+  return Array.isArray(value) ? value.filter(validId).slice(0, 200) : []
+}
 
+export async function createPresetSubject(
+  fceiaSubjectId: number,
+): Promise<ActionResult<{ subjectId: string }>> {
   try {
-    const fceiaSubjectId = readFceiaSubjectId(formData)
-    const include = readOptions(formData)
+    const userId = await getUserId()
+    if (!validId(fceiaSubjectId)) throw new UserError('Elegí una carrera y una materia de la lista.')
 
     const overview = await getOverview(fceiaSubjectId)
     const [subject] = await db
@@ -51,47 +46,51 @@ export async function createSubjectFromPreset(formData: FormData) {
         fceiaSubjectId,
       })
       .returning({ id: subjects.id })
-    subjectId = subject.id
 
-    notice = await importPreset({ userId, subjectId, fceiaSubjectId, include })
+    revalidatePath('/materias')
+    return { ok: true, subjectId: subject.id }
   } catch (error) {
-    errorMessage = toUserMessage(error, 'No pude importar la materia desde la FCEIA. Intentá de nuevo.')
+    return {
+      ok: false,
+      error: toUserMessage(error, 'No pude crear la materia desde la FCEIA. Intentá de nuevo.'),
+    }
   }
-
-  revalidatePath('/materias')
-  if (!subjectId) redirect(`/materias?error=${encodeURIComponent(errorMessage ?? '')}`)
-
-  revalidatePath(`/materias/${subjectId}`)
-  const query = errorMessage
-    ? `error=${encodeURIComponent(errorMessage)}`
-    : `notice=${encodeURIComponent(notice ?? '')}`
-  redirect(`/materias/${subjectId}?${query}`)
 }
 
-export async function importFromPreset(formData: FormData) {
-  const userId = await getUserId()
-  const subjectId = String(formData.get('subjectId') ?? '')
-  let notice: string | null = null
-  let errorMessage: string | null = null
-
+export async function importPresetBatch(
+  input: PresetBatchInput,
+): Promise<ActionResult<{ result: BatchResult }>> {
   try {
-    const fceiaSubjectId = readFceiaSubjectId(formData)
-    const include = readOptions(formData)
+    const userId = await getUserId()
+    if (!validId(input.fceiaSubjectId)) throw new UserError('Materia de la FCEIA inválida.')
 
     const [subject] = await db
       .select({ id: subjects.id })
       .from(subjects)
-      .where(and(eq(subjects.id, subjectId), eq(subjects.userId, userId)))
+      .where(and(eq(subjects.id, String(input.subjectId)), eq(subjects.userId, userId)))
     if (!subject) throw new UserError('Materia no encontrada.')
 
-    notice = await importPreset({ userId, subjectId, fceiaSubjectId, include })
+    const result = await importBatch({
+      userId,
+      subjectId: subject.id,
+      fceiaSubjectId: input.fceiaSubjectId,
+      include: {
+        program: Boolean(input.include?.program),
+        materials: Boolean(input.include?.materials),
+        exams: Boolean(input.include?.exams),
+      },
+      bibliographyIds: idList(input.bibliographyIds),
+      bookIds: idList(input.bookIds),
+      skipKeys: Array.isArray(input.skipKeys)
+        ? input.skipKeys.filter((key) => typeof key === 'string').slice(0, 500)
+        : [],
+      initial: Boolean(input.initial),
+    })
+    return { ok: true, result }
   } catch (error) {
-    errorMessage = toUserMessage(error, 'No pude importar desde la FCEIA. Intentá de nuevo.')
+    return {
+      ok: false,
+      error: toUserMessage(error, 'No pude importar desde la FCEIA. Intentá de nuevo.'),
+    }
   }
-
-  revalidatePath(`/materias/${subjectId}`)
-  const query = errorMessage
-    ? `error=${encodeURIComponent(errorMessage)}`
-    : `notice=${encodeURIComponent(notice ?? '')}`
-  redirect(`/materias/${subjectId}?${query}`)
 }

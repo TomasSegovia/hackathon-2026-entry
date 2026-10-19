@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { MathText } from '@/components/math-text'
+import { stripMath } from '@/lib/math'
 import { cn } from '@/lib/utils'
 import type { ExerciseData } from '@/lib/types'
 
@@ -24,11 +26,13 @@ export function ExerciseRow({
         type="checkbox"
         checked={exercise.done}
         onChange={(event) => onChange(event.target.checked)}
-        aria-label={`Marcar como resuelto: ${exercise.statement.slice(0, 60)}`}
+        aria-label={`Marcar como resuelto: ${stripMath(exercise.statement).slice(0, 60)}`}
         className="mt-1 size-4 shrink-0 accent-primary"
       />
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">{context}</p>
+        <p className="text-xs text-muted-foreground">
+          <MathText text={context} />
+        </p>
         <p
           className={cn(
             'mt-1 text-sm leading-relaxed whitespace-pre-line',
@@ -36,7 +40,7 @@ export function ExerciseRow({
             exercise.done && 'text-muted-foreground line-through decoration-1',
           )}
         >
-          {exercise.statement}
+          <MathText text={exercise.statement} />
         </p>
         {isLong && (
           <button

@@ -1,21 +1,19 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { and, desc, eq, sql } from 'drizzle-orm'
-import { ArrowLeft, ListChecks, Route, Trash2 } from 'lucide-react'
-import { importFromPreset } from '@/app/actions/fceia'
-import { deleteMaterial } from '@/app/actions/materials'
+import { ArrowLeft, ListChecks, Route } from 'lucide-react'
 import { deleteSubject } from '@/app/actions/subjects'
 import { FceiaPicker } from '@/components/fceia-picker'
 import { GenerateRoadmapForm } from '@/components/generate-roadmap-form'
 import { MaterialForm } from '@/components/material-form'
+import { MaterialList } from '@/components/material-list'
 import { ProgramForm } from '@/components/program-form'
 import { StepSection } from '@/components/step-section'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { db } from '@/lib/db'
 import { materials, practiceExercises, subjects, subtopics, topics } from '@/lib/db/schema'
 import { requireUser } from '@/lib/session'
-import { MATERIAL_KINDS, PRACTICE_KINDS, type MaterialKind } from '@/lib/types'
+import { PRACTICE_KINDS, type MaterialKind } from '@/lib/types'
 
 export const maxDuration = 300
 
@@ -134,48 +132,12 @@ export default async function SubjectPage({
               : 'Completar con contenido oficial de la FCEIA'}
           </summary>
           <div className="mt-4">
-            <FceiaPicker
-              action={importFromPreset}
-              subjectId={subject.id}
-              submitLabel="Importar desde la FCEIA"
-              pendingLabel="Importando desde la FCEIA… puede tardar un minuto"
-            />
+            <FceiaPicker subjectId={subject.id} submitLabel="Importar desde la FCEIA" />
           </div>
         </details>
         <MaterialForm subjectId={subject.id} />
         {materialList.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {materialList.map((material) => (
-              <li
-                key={material.id}
-                className="flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{material.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {material.chunkCount} fragmentos indexados
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant="secondary">
-                    {MATERIAL_KINDS[material.kind as MaterialKind] ?? 'Otro'}
-                  </Badge>
-                  <form action={deleteMaterial}>
-                    <input type="hidden" name="materialId" value={material.id} />
-                    <input type="hidden" name="subjectId" value={subject.id} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Eliminar ${material.title}`}
-                    >
-                      <Trash2 aria-hidden="true" />
-                    </Button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <MaterialList subjectId={subject.id} materials={materialList} />
         )}
       </StepSection>
 

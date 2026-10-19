@@ -31,6 +31,7 @@ export type FceiaMaterial = {
   id: number
   title: string
   kind: string
+  url: string | null
   has_text: boolean
 }
 
@@ -39,6 +40,7 @@ export type FceiaExam = {
   title: string
   category: string
   date: string | null
+  file_url: string | null
   has_text: boolean
 }
 
@@ -103,6 +105,46 @@ export async function listBibliography(subjectId: number) {
     { cache: true },
   )
   return items
+}
+
+const ORIGIN = 'https://fceia-api.ariloc.ar'
+
+function absoluteUrl(path: string) {
+  return new URL(path, ORIGIN).href
+}
+
+/** Size in bytes of an original file, or null when the server does not report it. */
+export async function getFileSize(path: string): Promise<number | null> {
+  try {
+    const response = await fetch(absoluteUrl(path), {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(8_000),
+      next: { revalidate: 3600 },
+    })
+    const length = Number(response.headers.get('content-length'))
+    return response.ok && Number.isFinite(length) && length > 0 ? length : null
+  } catch {
+    return null
+  }
+}
+
+/** Downloads an original PDF; returns null when it is not a PDF or exceeds the size limit. */
+export async function downloadPdf(
+  path: string,
+  options: { maxBytes: number; timeoutMs: number },
+): Promise<Uint8Array | null> {
+  if (!/\.pdf(\?|$)/i.test(path)) return null
+  const response = await fetch(absoluteUrl(path), {
+    signal: AbortSignal.timeout(options.timeoutMs),
+    cache: 'no-store',
+  })
+  if (!response.ok) return null
+
+  const declared = Number(response.headers.get('content-length'))
+  if (Number.isFinite(declared) && declared > options.maxBytes) return null
+
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  return bytes.byteLength > options.maxBytes ? null : bytes
 }
 
 export async function getMaterialText(materialId: number) {

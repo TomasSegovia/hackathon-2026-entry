@@ -2,7 +2,10 @@
 
 import { Check } from 'lucide-react'
 import { ExerciseRow } from '@/components/exercise-row'
+import { MathText } from '@/components/math-text'
 import { StatusControl } from '@/components/status-control'
+import { formatPages } from '@/lib/format-pages'
+import { stripMath } from '@/lib/math'
 import {
   MATERIAL_KINDS,
   STATUS_LABELS,
@@ -38,7 +41,7 @@ function NeighbourList({
               {item.status === 'done' && (
                 <Check className="size-3 text-primary" aria-label={STATUS_LABELS.done} />
               )}
-              {item.title}
+              {stripMath(item.title)}
             </button>
           </li>
         ))}
@@ -79,15 +82,19 @@ export function TopicPanel({
       <header className="flex flex-col gap-3">
         <div>
           <h2 id="topic-title" className="font-serif text-xl font-semibold text-balance">
-            {topic.title}
+            <MathText text={topic.title} />
           </h2>
-          {topic.summary && <p className="mt-1 text-sm text-muted-foreground">{topic.summary}</p>}
+          {topic.summary && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <MathText text={topic.summary} />
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-medium text-muted-foreground">Estado del tema</span>
           <StatusControl
             value={topic.status}
-            label={`Estado del tema ${topic.title}`}
+            label={`Estado del tema ${stripMath(topic.title)}`}
             onChange={onTopicStatus}
           />
         </div>
@@ -103,10 +110,12 @@ export function TopicPanel({
           {subtopics.map((subtopic) => (
             <li key={subtopic.id} className="rounded-lg border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="min-w-0 flex-1 text-sm font-medium">{subtopic.title}</span>
+                <span className="min-w-0 flex-1 text-sm font-medium">
+                  <MathText text={subtopic.title} />
+                </span>
                 <StatusControl
                   value={subtopic.status}
-                  label={`Estado de ${subtopic.title}`}
+                  label={`Estado de ${stripMath(subtopic.title)}`}
                   onChange={(status) => onSubtopicStatus(subtopic.id, status)}
                 />
               </div>
@@ -130,7 +139,11 @@ export function TopicPanel({
                               'Material'}
                           </span>
                         </p>
-                        <p className="mt-1 line-clamp-3 text-muted-foreground">{source.snippet}</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {source.pages && source.pages.length > 0
+                            ? `Buscalo en ${formatPages(source.pages)}`
+                            : 'Este documento no tiene páginas numeradas: buscá el tema por su título.'}
+                        </p>
                       </li>
                     ))}
                   </ul>
