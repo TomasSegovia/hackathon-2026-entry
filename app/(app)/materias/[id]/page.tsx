@@ -41,8 +41,9 @@ export default async function SubjectPage({
         id: materials.id,
         title: materials.title,
         kind: materials.kind,
-        chunkCount: materials.chunkCount,
-      })
+  chunkCount: materials.chunkCount,
+  externalKey: materials.externalKey,
+  })
       .from(materials)
       .where(and(eq(materials.subjectId, id), eq(materials.userId, user.id)))
       .orderBy(desc(materials.createdAt)),

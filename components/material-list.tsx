@@ -1,6 +1,6 @@
-import { Trash2 } from 'lucide-react'
+import { Download, Trash2 } from 'lucide-react'
 import { deleteMaterial } from '@/app/actions/materials'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { MATERIAL_KINDS, type MaterialKind } from '@/lib/types'
 
 type MaterialItem = {
@@ -8,7 +8,10 @@ type MaterialItem = {
   title: string
   kind: string
   chunkCount: number
+  externalKey: string | null
 }
+
+const DOWNLOADABLE_KEY = /^fceia:(material|exam):\d+$/
 
 const GROUP_ORDER = Object.keys(MATERIAL_KINDS) as MaterialKind[]
 
@@ -66,6 +69,18 @@ export function MaterialList({
                       {material.chunkCount} fragmentos indexados
                     </p>
                   </div>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                  {material.externalKey && DOWNLOADABLE_KEY.test(material.externalKey) && (
+                    <a
+                      href={`/api/materials/${material.id}/file`}
+                      download
+                      aria-label={`Descargar ${material.title}`}
+                      title="Descargar archivo original"
+                      className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+                    >
+                      <Download aria-hidden="true" />
+                    </a>
+                  )}
                   <form action={deleteMaterial}>
                     <input type="hidden" name="materialId" value={material.id} />
                     <input type="hidden" name="subjectId" value={subjectId} />
@@ -78,6 +93,7 @@ export function MaterialList({
                       <Trash2 aria-hidden="true" />
                     </Button>
                   </form>
+                  </div>
                 </li>
               ))}
             </ul>

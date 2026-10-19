@@ -293,6 +293,29 @@ export function RoadmapExplorer({
             Las flechas van del tema que conviene saber primero al que lo necesita. Los temas en
             líneas distintas son independientes entre sí.
           </p>
+          <details className="rounded-lg border bg-card px-4 py-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              ¿Cómo se decide qué tema depende de cuál?
+            </summary>
+            <div className="mt-3 flex flex-col gap-2 leading-relaxed">
+              <p>
+                Un tema B depende de A solo si, para entender las definiciones o demostraciones de B,
+                o para resolver sus ejercicios típicos, hace falta usar algo que se introduce en A.
+                La prueba es: si se pueden resolver los ejercicios de B sin haber estudiado A, no hay
+                dependencia.
+              </p>
+              <p>
+                No cuenta como dependencia que A aparezca antes en el programa, que sean del mismo
+                capítulo o que A se use solo como ejemplo. Tampoco se marcan las indirectas: si C
+                depende de B y B de A, la flecha de A a C no se dibuja salvo que C use A por sí
+                mismo.
+              </p>
+              <p>
+                Las dependencias las propone el modelo a partir del programa y se verifican sin ciclos.
+                Si alguna no te cierra, podés estudiar el tema igual: el orden es una guía.
+              </p>
+            </div>
+          </details>
         </section>
 
         <div ref={panelRef} className="scroll-mt-4">

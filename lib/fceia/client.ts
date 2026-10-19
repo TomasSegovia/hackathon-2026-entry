@@ -147,6 +147,25 @@ export async function downloadPdf(
   return bytes.byteLength > options.maxBytes ? null : bytes
 }
 
+/** Path and download name of the original file behind an imported FCEIA document. */
+export async function getOriginalFileInfo(
+  kind: 'material' | 'exam',
+  id: number,
+): Promise<{ path: string; filename: string } | null> {
+  if (kind === 'material') {
+    const material = await request<{ url: string | null; title: string }>(`/materials/${id}`)
+    return material.url ? { path: material.url, filename: material.title } : null
+  }
+  const exam = await request<{ file_url: string | null; original_filename: string | null; title: string }>(
+    `/exams/${id}`,
+  )
+  return exam.file_url ? { path: exam.file_url, filename: exam.original_filename ?? exam.title } : null
+}
+
+export function fetchOriginalFile(path: string) {
+  return fetch(absoluteUrl(path), { signal: AbortSignal.timeout(60_000), cache: 'no-store' })
+}
+
 export async function getMaterialText(materialId: number) {
   const { text } = await request<{ text: string }>(`/materials/${materialId}/text`)
   return text ?? ''
