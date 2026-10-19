@@ -10,9 +10,9 @@ const sourceSerif = Source_Serif_4({
 })
 
 export const metadata: Metadata = {
-  title: 'Cuaderno - Encontrá qué estudiar para cada ejercicio',
+  title: 'Cuaderno - Roadmap de estudio para cada materia',
   description:
-    'Subí un ejercicio, una práctica o un examen y encontrá en tus apuntes, exámenes anteriores y bibliografía dónde está la teoría que necesitás.',
+    'Cargá el programa y la bibliografía de tu materia y obtené un grafo de dependencias entre temas, con seguimiento de avance y ejercicios de práctica.',
 }
 
 export const viewport: Viewport = {

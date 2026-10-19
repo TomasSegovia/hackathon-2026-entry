@@ -12,7 +12,7 @@ export default async function SignUpPage() {
   return (
     <AuthShell
       title="Creá tu cuaderno"
-      description="Guardá tus apuntes y encontrá qué estudiar para cada ejercicio."
+      description="Armá el roadmap de tus materias y seguí tu avance tema por tema."
     >
       <AuthForm mode="sign-up" />
     </AuthShell>

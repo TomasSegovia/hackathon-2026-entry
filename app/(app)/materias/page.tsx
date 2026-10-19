@@ -56,7 +56,7 @@ export default async function SubjectsPage() {
           <Library className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="font-medium">Todavía no tenés materias</p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Creá la primera, subí tus apuntes y después probá con un ejercicio.
+            Creá la primera, cargá su programa y su bibliografía, y generá tu roadmap.
           </p>
         </div>
       ) : (

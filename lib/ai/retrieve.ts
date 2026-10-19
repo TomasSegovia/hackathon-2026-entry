@@ -1,15 +1,15 @@
 import 'server-only'
 import { embedMany } from 'ai'
-import { and, cosineDistance, eq, sql } from 'drizzle-orm'
+import { and, cosineDistance, eq, notInArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { chunks, materials } from '@/lib/db/schema'
-import type { ItemStatus, Source } from '@/lib/types'
+import { PRACTICE_KINDS, type Source } from '@/lib/types'
 
 export const EMBEDDING_MODEL = 'openai/text-embedding-3-small'
 
-const FOUND_THRESHOLD = 0.45
-const WEAK_THRESHOLD = 0.3
-const MAX_SOURCES_PER_ITEM = 3
+const MIN_SCORE = 0.3
+const MAX_SOURCES = 2
+const SNIPPET_LENGTH = 320
 
 export async function embedTexts(values: string[]): Promise<number[][]> {
   if (values.length === 0) return []
@@ -17,7 +17,7 @@ export async function embedTexts(values: string[]): Promise<number[][]> {
   return embeddings
 }
 
-async function searchOne(
+async function searchStudyMaterial(
   userId: string,
   subjectId: string,
   embedding: number[],
@@ -34,32 +34,38 @@ async function searchOne(
     })
     .from(chunks)
     .innerJoin(materials, eq(materials.id, chunks.materialId))
-    .where(and(eq(chunks.userId, userId), eq(chunks.subjectId, subjectId)))
+    .where(
+      and(
+        eq(chunks.userId, userId),
+        eq(chunks.subjectId, subjectId),
+        notInArray(materials.kind, [...PRACTICE_KINDS]),
+      ),
+    )
     .orderBy(sql`${similarity} desc`)
-    .limit(12)
+    .limit(8)
 
   const bestPerMaterial = new Map<string, Source>()
   for (const row of rows) {
     const score = Number(row.score)
-    if (score < WEAK_THRESHOLD || bestPerMaterial.has(row.materialId)) continue
-    bestPerMaterial.set(row.materialId, { ...row, score })
+    if (score < MIN_SCORE || bestPerMaterial.has(row.materialId)) continue
+    bestPerMaterial.set(row.materialId, {
+      ...row,
+      score,
+      snippet: row.snippet.slice(0, SNIPPET_LENGTH),
+    })
   }
 
-  return [...bestPerMaterial.values()].slice(0, MAX_SOURCES_PER_ITEM)
+  return [...bestPerMaterial.values()].slice(0, MAX_SOURCES)
 }
 
-export function classify(sources: Source[]): ItemStatus {
-  const best = sources[0]?.score ?? 0
-  if (best >= FOUND_THRESHOLD) return 'found'
-  if (best >= WEAK_THRESHOLD) return 'weak'
-  return 'not_found'
-}
-
-export async function findSourcesForQueries(
+/** Finds, for each query, the theory fragments of the subject that best explain it. */
+export async function findStudySources(
   userId: string,
   subjectId: string,
   queries: string[],
 ): Promise<Source[][]> {
   const embeddings = await embedTexts(queries)
-  return Promise.all(embeddings.map((embedding) => searchOne(userId, subjectId, embedding)))
+  return Promise.all(
+    embeddings.map((embedding) => searchStudyMaterial(userId, subjectId, embedding)),
+  )
 }

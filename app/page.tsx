@@ -1,24 +1,24 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { BookOpen, FileSearch, Globe, Upload } from 'lucide-react'
+import { BookOpen, Library, Route, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getSession } from '@/lib/session'
 
 const steps = [
   {
     icon: Upload,
-    title: 'Subí tu consigna',
-    text: 'Un ejercicio, una práctica o un examen completo. Pegá el texto o subí un PDF.',
+    title: 'Cargá el programa',
+    text: 'Subí el programa de la materia en PDF o pegalo. Es la base de todo el recorrido.',
   },
   {
-    icon: FileSearch,
-    title: 'Buscamos en tu material',
-    text: 'Cruzamos cada punto con tus apuntes, exámenes anteriores y bibliografía, y te mostramos el fragmento exacto.',
+    icon: Library,
+    title: 'Sumá tu bibliografía',
+    text: 'Libros, apuntes, guías de práctica y exámenes anteriores. Sirven para sugerirte dónde estudiar cada subtema y qué ejercicios hacer.',
   },
   {
-    icon: Globe,
-    title: 'Internet, solo si vos querés',
-    text: 'Si no hay nada en tu material, te preguntamos antes de buscar afuera.',
+    icon: Route,
+    title: 'Recorré tu roadmap',
+    text: 'Un grafo de dependencias entre temas: qué va primero, qué se puede estudiar en paralelo, y tu avance marcado a mano.',
   },
 ]
 
@@ -46,12 +46,13 @@ export default async function HomePage() {
       <main className="mx-auto max-w-5xl px-4">
         <section className="py-16 md:py-24">
           <h1 className="max-w-2xl text-4xl leading-tight font-semibold text-balance md:text-6xl">
-            Antes de resolver, encontrá{' '}
-            <span className="bg-accent px-1">qué tenés que estudiar</span>.
+            Una materia entera, en un{' '}
+            <span className="bg-accent px-1">mapa de qué estudiar y en qué orden</span>.
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">
-            Subí un ejercicio o un examen y Cuaderno te indica en qué apunte, parcial anterior o
-            libro está la teoría de cada punto. No te da la resolución: te lleva a la fuente.
+            Cargá el programa y la bibliografía de tu materia y Cuaderno arma un roadmap: temas
+            divididos en subtemas, dependencias entre ellos, seguimiento de lo que ya viste y
+            ejercicios de práctica para cada paso.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button size="lg" nativeButton={false} render={<Link href="/sign-up" />}>

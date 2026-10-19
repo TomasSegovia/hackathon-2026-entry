@@ -10,7 +10,7 @@ export default async function SignInPage() {
   if (session?.user) redirect('/materias')
 
   return (
-    <AuthShell title="Ingresá a tu cuaderno" description="Retomá tus materias y ejercicios.">
+    <AuthShell title="Ingresá a tu cuaderno" description="Retomá tus materias y tu roadmap.">
       <AuthForm mode="sign-in" />
     </AuthShell>
   )

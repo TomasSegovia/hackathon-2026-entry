@@ -1,21 +1,24 @@
 export const MATERIAL_KINDS = {
-  apunte: 'Apunte',
-  examen_anterior: 'Examen anterior',
   bibliografia: 'Bibliografía',
+  apunte: 'Apunte',
+  practica: 'Práctica',
+  examen_anterior: 'Examen anterior',
   otro: 'Otro',
 } as const
 
-export const EXERCISE_KINDS = {
-  ejercicio: 'Ejercicio',
-  practica: 'Práctica',
-  examen: 'Examen',
-} as const
-
 export type MaterialKind = keyof typeof MATERIAL_KINDS
-export type ExerciseKind = keyof typeof EXERCISE_KINDS
 
-export type ItemStatus = 'found' | 'weak' | 'not_found'
-export type WebStatus = 'none' | 'declined' | 'done' | 'error'
+/** Materials that provide exercises instead of theory. */
+export const PRACTICE_KINDS: readonly MaterialKind[] = ['practica', 'examen_anterior']
+
+export const PROGRESS_STATUSES = ['pending', 'learning', 'done'] as const
+export type ProgressStatus = (typeof PROGRESS_STATUSES)[number]
+
+export const STATUS_LABELS: Record<ProgressStatus, string> = {
+  pending: 'Por ver',
+  learning: 'En curso',
+  done: 'Visto',
+}
 
 export type Source = {
   materialId: string
@@ -25,15 +28,36 @@ export type Source = {
   score: number
 }
 
-export type WebSource = {
+export type TopicData = {
+  id: string
   title: string
-  url: string
+  summary: string
+  position: number
+  prerequisites: string[]
+  status: ProgressStatus
+}
+
+export type SubtopicData = {
+  id: string
+  topicId: string
+  title: string
+  position: number
+  status: ProgressStatus
+  sources: Source[]
+}
+
+export type ExerciseData = {
+  id: string
+  topicId: string
+  subtopicId: string
+  statement: string
+  done: boolean
 }
 
 export function isMaterialKind(value: string): value is MaterialKind {
   return value in MATERIAL_KINDS
 }
 
-export function isExerciseKind(value: string): value is ExerciseKind {
-  return value in EXERCISE_KINDS
+export function isProgressStatus(value: unknown): value is ProgressStatus {
+  return typeof value === 'string' && (PROGRESS_STATUSES as readonly string[]).includes(value)
 }

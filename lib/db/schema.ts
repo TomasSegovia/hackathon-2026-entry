@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgTable,
@@ -6,7 +7,7 @@ import {
   timestamp,
   vector,
 } from 'drizzle-orm/pg-core'
-import type { Source, WebSource } from '@/lib/types'
+import type { ProgressStatus, Source } from '@/lib/types'
 
 const id = () =>
   text('id')
@@ -18,6 +19,7 @@ export const subjects = pgTable('subjects', {
   userId: text('userId').notNull(),
   name: text('name').notNull(),
   description: text('description'),
+  program: text('program'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
@@ -43,26 +45,37 @@ export const chunks = pgTable('chunks', {
   embedding: vector('embedding', { dimensions: 1536 }).notNull(),
 })
 
-export const exercises = pgTable('exercises', {
+export const topics = pgTable('topics', {
   id: id(),
   userId: text('userId').notNull(),
   subjectId: text('subjectId').notNull(),
   title: text('title').notNull(),
-  kind: text('kind').notNull().default('ejercicio'),
-  content: text('content').notNull(),
-  status: text('status').notNull().default('pending'),
+  summary: text('summary').notNull().default(''),
+  position: integer('position').notNull().default(0),
+  prerequisites: jsonb('prerequisites').$type<string[]>().notNull().default([]),
+  status: text('status').$type<ProgressStatus>().notNull().default('pending'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
-export const exerciseItems = pgTable('exercise_items', {
+export const subtopics = pgTable('subtopics', {
   id: id(),
   userId: text('userId').notNull(),
-  exerciseId: text('exerciseId').notNull(),
-  position: integer('position').notNull(),
-  statement: text('statement').notNull(),
-  topic: text('topic').notNull(),
-  status: text('status').notNull().default('not_found'),
+  subjectId: text('subjectId').notNull(),
+  topicId: text('topicId').notNull(),
+  title: text('title').notNull(),
+  position: integer('position').notNull().default(0),
+  status: text('status').$type<ProgressStatus>().notNull().default('pending'),
   sources: jsonb('sources').$type<Source[]>().notNull().default([]),
-  webStatus: text('webStatus').notNull().default('none'),
-  webSources: jsonb('webSources').$type<WebSource[]>().notNull().default([]),
+})
+
+export const practiceExercises = pgTable('practice_exercises', {
+  id: id(),
+  userId: text('userId').notNull(),
+  subjectId: text('subjectId').notNull(),
+  topicId: text('topicId').notNull(),
+  subtopicId: text('subtopicId').notNull(),
+  materialId: text('materialId'),
+  statement: text('statement').notNull(),
+  position: integer('position').notNull().default(0),
+  done: boolean('done').notNull().default(false),
 })
