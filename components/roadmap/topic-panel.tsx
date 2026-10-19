@@ -5,6 +5,7 @@ import { ExerciseRow } from '@/components/exercise-row'
 import { MathText } from '@/components/math-text'
 import { StatusControl } from '@/components/status-control'
 import { formatPages } from '@/lib/format-pages'
+import { missingPagesNote } from '@/lib/missing-pages'
 import { stripMath } from '@/lib/math'
 import {
   MATERIAL_KINDS,
@@ -142,7 +143,7 @@ export function TopicPanel({
                         <p className="mt-1 text-muted-foreground">
                           {source.pages && source.pages.length > 0
                             ? `Buscalo en ${formatPages(source.pages)}`
-                            : 'Este documento no tiene páginas numeradas: buscá el tema por su título.'}
+                            : missingPagesNote(source.materialKind)}
                         </p>
                       </li>
                     ))}

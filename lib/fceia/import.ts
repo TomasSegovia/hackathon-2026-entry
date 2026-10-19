@@ -40,10 +40,14 @@ export type ImportInput = {
   skipKeys: string[]
   /** True for the first batch, which also handles the program and the bibliography. */
   initial: boolean
+  /** Re-reads documents imported before page numbers existed, instead of importing new ones. */
+  refresh: boolean
 }
 
 export type BatchResult = {
   saved: number
+  /** Refresh only: documents whose original PDF has no page-level text (e.g. scans). */
+  unchanged: number
   failed: number
   empty: number
   remaining: number
@@ -246,10 +250,12 @@ async function importBibliography(
 
 /** Imports one batch of FCEIA documents; the client repeats it until nothing remains. */
 export async function importBatch(input: ImportInput): Promise<BatchResult> {
-  const { userId, subjectId, fceiaSubjectId, include } = input
+  const { userId, subjectId, fceiaSubjectId, refresh } = input
+  const include = refresh ? { program: false, materials: true, exams: true } : input.include
+  const initial = input.initial && !refresh
   const notes: string[] = []
 
-  if (input.initial) await importProgram(input, notes)
+  if (initial) await importProgram(input, notes)
 
   const [materialList, examList, bibliography] = await Promise.all([
     include.materials || input.bookIds.length > 0
@@ -259,10 +265,14 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
     listBibliography(fceiaSubjectId),
   ])
 
-  if (input.initial) await importBibliography(input, bibliography, notes)
+  if (initial) await importBibliography(input, bibliography, notes)
 
   const existing = await db
-    .select({ key: materials.externalKey })
+    .select({
+      id: materials.id,
+      key: materials.externalKey,
+      pagesChecked: materials.pagesChecked,
+    })
     .from(materials)
     .where(
       and(
@@ -272,13 +282,22 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
       ),
     )
   const unavailable = new Set<string | null>([...existing.map((row) => row.key), ...input.skipKeys])
+  const existingIds = new Map(existing.map((row) => [row.key, row.id]))
+  const staleKeys = new Set(
+    existing.filter((row) => !row.pagesChecked && row.key !== BIBLIOGRAPHY_KEY).map((row) => row.key),
+  )
 
   const { bookIds } = classifyBooks(
     materialList.filter((item) => item.has_text),
     bibliography,
   )
+  const selectedBookIds = refresh
+    ? materialList
+        .filter((item) => bookIds.has(item.id) && staleKeys.has(`fceia:material:${item.id}`))
+        .map((item) => item.id)
+    : input.bookIds
 
-  const withoutText = input.initial
+  const withoutText = initial
     ? materialList.filter((item) => !item.has_text && !bookIds.has(item.id)).length +
       examList.filter((item) => !item.has_text).length
     : 0
@@ -321,7 +340,7 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
     }))
 
   const bookCandidates: Candidate[] = materialList
-    .filter((item) => item.has_text && input.bookIds.includes(item.id))
+    .filter((item) => item.has_text && selectedBookIds.includes(item.id))
     .map((item) => ({
       key: `fceia:material:${item.id}`,
       title: item.title.replace(/\.pdf$/i, ''),
@@ -338,13 +357,27 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
     }))
 
   const pending = [...interleave(studyCandidates, examCandidates), ...bookCandidates].filter(
-    (candidate) => !unavailable.has(candidate.key),
+    (candidate) =>
+      refresh
+        ? staleKeys.has(candidate.key) && !input.skipKeys.includes(candidate.key)
+        : !unavailable.has(candidate.key),
   )
   const batch = pickBatch(pending)
 
   const outcomes = await mapWithLimit(batch, CONCURRENCY, async (candidate) => {
+    const existingId = refresh ? existingIds.get(candidate.key) : undefined
     try {
       const document = await candidate.load()
+
+      if (refresh && existingId && (!document.pages || document.text.length < MIN_DOCUMENT_CHARS)) {
+        // Scans and thin text layers will never yield pages, so stop offering them for refresh.
+        await db
+          .update(materials)
+          .set({ pagesChecked: true })
+          .where(and(eq(materials.id, existingId), eq(materials.userId, userId)))
+        return 'unchanged' as const
+      }
+
       if (document.text.length < MIN_DOCUMENT_CHARS) return 'empty' as const
       const saved = await saveMaterial({
         userId,
@@ -355,6 +388,7 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
         pages: document.pages,
         sourceName: 'FCEIA',
         externalKey: candidate.key,
+        replaceMaterialId: existingId,
       })
       return saved ? ('saved' as const) : ('empty' as const)
     } catch (error) {
@@ -365,6 +399,7 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
 
   return {
     saved: outcomes.filter((outcome) => outcome === 'saved').length,
+    unchanged: outcomes.filter((outcome) => outcome === 'unchanged').length,
     failed: outcomes.filter((outcome) => outcome === 'failed').length,
     empty: outcomes.filter((outcome) => outcome === 'empty').length,
     remaining: pending.length - batch.length,

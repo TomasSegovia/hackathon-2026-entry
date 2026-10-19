@@ -4,9 +4,10 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { AlertTriangle, LoaderCircle } from 'lucide-react'
-import { createPresetSubject, importPresetBatch } from '@/app/actions/fceia'
+import { createPresetSubject } from '@/app/actions/fceia'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { ActionError, runBatch } from '@/lib/fceia/run-batch'
 import { formatBytes, type BookCatalog, type BookFile } from '@/lib/fceia/types'
 
 type Career = { id: number; name: string; level: string }
@@ -15,7 +16,6 @@ type Progress = { done: number; total: number | null }
 type Include = { program: boolean; materials: boolean; exams: boolean }
 
 const MAX_BATCHES = 120
-const BATCH_ATTEMPTS = 3
 
 const selectClassName =
   'h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50'
@@ -26,8 +26,6 @@ const CONTENT_OPTIONS: { name: keyof Include; label: string; hint: string }[] = 
   { name: 'exams', label: 'Exámenes anteriores', hint: 'Parciales y finales' },
 ]
 
-class ActionError extends Error {}
-
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) throw new Error('No pude consultar la FCEIA.')
@@ -37,27 +35,6 @@ async function fetchJson<T>(url: string): Promise<T> {
 function termLabel(subject: PresetSubject) {
   if (!subject.year) return subject.kind === 'electiva' ? 'Electiva' : 'Sin año'
   return `${subject.year}° año`
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/** Retries transient failures (timeouts, dropped connections) without restarting the whole import. */
-async function runBatch(input: Parameters<typeof importPresetBatch>[0]) {
-  let failure = new Error('Se cortó la conexión con el servidor.')
-  for (let attempt = 0; attempt < BATCH_ATTEMPTS; attempt++) {
-    try {
-      const response = await importPresetBatch(input)
-      if (response.ok) return response.result
-      throw new ActionError(response.error)
-    } catch (error) {
-      if (error instanceof ActionError) throw error
-      failure = error instanceof Error ? error : failure
-      await wait(1500 * (attempt + 1))
-    }
-  }
-  throw failure
 }
 
 function BookFileRow({

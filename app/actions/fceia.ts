@@ -17,6 +17,7 @@ export type PresetBatchInput = {
   bookIds: number[]
   skipKeys: string[]
   initial: boolean
+  refresh?: boolean
 }
 
 type ActionResult<T> = ({ ok: true } & T) | { ok: false; error: string }
@@ -85,6 +86,7 @@ export async function importPresetBatch(
         ? input.skipKeys.filter((key) => typeof key === 'string').slice(0, 500)
         : [],
       initial: Boolean(input.initial),
+      refresh: Boolean(input.refresh),
     })
     return { ok: true, result }
   } catch (error) {

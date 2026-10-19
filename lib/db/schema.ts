@@ -34,6 +34,7 @@ export const materials = pgTable('materials', {
   sourceName: text('sourceName'),
   externalKey: text('externalKey'),
   chunkCount: integer('chunkCount').notNull().default(0),
+  pagesChecked: boolean('pagesChecked').notNull().default(false),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 

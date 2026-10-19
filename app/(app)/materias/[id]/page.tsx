@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, like, ne, sql } from 'drizzle-orm'
 import { ArrowLeft, ListChecks, Route } from 'lucide-react'
 import { deleteSubject } from '@/app/actions/subjects'
 import { FceiaPicker } from '@/components/fceia-picker'
@@ -8,6 +8,7 @@ import { GenerateRoadmapForm } from '@/components/generate-roadmap-form'
 import { MaterialForm } from '@/components/material-form'
 import { MaterialList } from '@/components/material-list'
 import { ProgramForm } from '@/components/program-form'
+import { RefreshPagesButton } from '@/components/refresh-pages-button'
 import { StepSection } from '@/components/step-section'
 import { Button } from '@/components/ui/button'
 import { db } from '@/lib/db'
@@ -34,7 +35,7 @@ export default async function SubjectPage({
     .where(and(eq(subjects.id, id), eq(subjects.userId, user.id)))
   if (!subject) notFound()
 
-  const [materialList, [topicStats], [subtopicStats], [exerciseStats]] = await Promise.all([
+  const [materialList, [topicStats], [subtopicStats], [exerciseStats], [staleStats]] = await Promise.all([
     db
       .select({
         id: materials.id,
@@ -60,6 +61,18 @@ export default async function SubjectPage({
       .select({ total: sql<number>`count(*)::int` })
       .from(practiceExercises)
       .where(and(eq(practiceExercises.subjectId, id), eq(practiceExercises.userId, user.id))),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(materials)
+      .where(
+        and(
+          eq(materials.subjectId, id),
+          eq(materials.userId, user.id),
+          eq(materials.pagesChecked, false),
+          like(materials.externalKey, 'fceia:%'),
+          ne(materials.externalKey, 'fceia:bibliography'),
+        ),
+      ),
   ])
 
   const hasProgram = Boolean(subject.program?.trim())
@@ -135,6 +148,13 @@ export default async function SubjectPage({
             <FceiaPicker subjectId={subject.id} submitLabel="Importar desde la FCEIA" />
           </div>
         </details>
+        {subject.fceiaSubjectId && staleStats.total > 0 && (
+          <RefreshPagesButton
+            subjectId={subject.id}
+            fceiaSubjectId={subject.fceiaSubjectId}
+            staleCount={staleStats.total}
+          />
+        )}
         <MaterialForm subjectId={subject.id} />
         {materialList.length > 0 && (
           <MaterialList subjectId={subject.id} materials={materialList} />

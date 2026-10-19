@@ -1,4 +1,5 @@
 import 'server-only'
+import { and, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { chunks, materials } from '@/lib/db/schema'
 import { embedTexts } from '@/lib/ai/retrieve'
@@ -16,6 +17,8 @@ export type NewMaterial = {
   pages: string[] | null
   sourceName: string | null
   externalKey?: string | null
+  /** Re-indexes an existing document in place, so references to its id keep working. */
+  replaceMaterialId?: string
 }
 
 /** Indexes a document with its page numbers. Returns false when there is not enough text. */
@@ -28,26 +31,41 @@ export async function saveMaterial(input: NewMaterial): Promise<boolean> {
   const embeddings = await embedTexts(pieces.map((piece) => piece.content))
 
   await db.transaction(async (tx) => {
-    const [material] = await tx
-      .insert(materials)
-      .values({
-        userId: input.userId,
-        subjectId: input.subjectId,
-        title: input.title.slice(0, 160),
-        kind: input.kind,
-        content: input.text,
-        sourceName: input.sourceName,
-        externalKey: input.externalKey ?? null,
-        chunkCount: pieces.length,
-      })
-      .returning({ id: materials.id })
+    let materialId: string
+
+    if (input.replaceMaterialId) {
+      materialId = input.replaceMaterialId
+      await tx
+        .delete(chunks)
+        .where(and(eq(chunks.materialId, materialId), eq(chunks.userId, input.userId)))
+      await tx
+        .update(materials)
+        .set({ content: input.text, chunkCount: pieces.length, pagesChecked: true })
+        .where(and(eq(materials.id, materialId), eq(materials.userId, input.userId)))
+    } else {
+      const [material] = await tx
+        .insert(materials)
+        .values({
+          userId: input.userId,
+          subjectId: input.subjectId,
+          title: input.title.slice(0, 160),
+          kind: input.kind,
+          content: input.text,
+          sourceName: input.sourceName,
+          externalKey: input.externalKey ?? null,
+          chunkCount: pieces.length,
+          pagesChecked: true,
+        })
+        .returning({ id: materials.id })
+      materialId = material.id
+    }
 
     for (let start = 0; start < pieces.length; start += INSERT_SLICE) {
       await tx.insert(chunks).values(
         pieces.slice(start, start + INSERT_SLICE).map((piece, offset) => ({
           userId: input.userId,
           subjectId: input.subjectId,
-          materialId: material.id,
+          materialId,
           position: start + offset,
           page: piece.page,
           content: piece.content,
