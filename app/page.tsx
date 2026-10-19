@@ -1,47 +1,92 @@
-export default function Page() {
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { BookOpen, FileSearch, Globe, Upload } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { getSession } from '@/lib/session'
+
+const steps = [
+  {
+    icon: Upload,
+    title: 'Subí tu consigna',
+    text: 'Un ejercicio, una práctica o un examen completo. Pegá el texto o subí un PDF.',
+  },
+  {
+    icon: FileSearch,
+    title: 'Buscamos en tu material',
+    text: 'Cruzamos cada punto con tus apuntes, exámenes anteriores y bibliografía, y te mostramos el fragmento exacto.',
+  },
+  {
+    icon: Globe,
+    title: 'Internet, solo si vos querés',
+    text: 'Si no hay nada en tu material, te preguntamos antes de buscar afuera.',
+  },
+]
+
+export default async function HomePage() {
+  const session = await getSession()
+  if (session?.user) redirect('/materias')
+
   return (
-    <main
-      style={{
-        colorScheme: 'light dark',
-        position: 'relative',
-        display: 'flex',
-        minHeight: '100vh',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'light-dark(#fff, #000)',
-        color: 'light-dark(#000, #fff)',
-      }}
-    >
-      <svg
-        aria-hidden="true"
-        style={{ width: 80, height: 80 }}
-        width={80}
-        height={80}
-        fill="none"
-        viewBox="0 0 20 20"
-        xmlns="http://www.w3.org/2000/svg"
-        stroke="currentColor"
-        strokeWidth="0.5"
-      >
-        <path
-          d="M14.2 14.2H17V6.9375C17 4.76288 15.2371 3 13.0625 3H5.8V5.8M14.2 14.2V7.79063L7.79062 14.2H14.2ZM14.2 14.2V17H6.9375C4.76288 17 3 15.2371 3 13.0625V5.8H5.8M5.8 5.8V12.2313L12.2313 5.8H5.8Z"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <p
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: 'calc(50% + 56px)',
-          transform: 'translateX(-50%)',
-          whiteSpace: 'nowrap',
-          fontSize: '14px',
-          fontWeight: 500,
-          color: 'light-dark(#71717a, #a1a1aa)',
-        }}
-      >
-        Your v0 generation will show here.
-      </p>
-    </main>
+    <div className="min-h-svh">
+      <header className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
+        <span className="flex items-center gap-2 font-serif text-lg font-semibold">
+          <BookOpen className="size-5 text-primary" aria-hidden="true" />
+          Cuaderno
+        </span>
+        <nav className="flex items-center gap-2">
+          <Button variant="ghost" nativeButton={false} render={<Link href="/sign-in" />}>
+            Ingresar
+          </Button>
+          <Button nativeButton={false} render={<Link href="/sign-up" />}>
+            Crear cuenta
+          </Button>
+        </nav>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4">
+        <section className="py-16 md:py-24">
+          <h1 className="max-w-2xl text-4xl leading-tight font-semibold text-balance md:text-6xl">
+            Antes de resolver, encontrá{' '}
+            <span className="bg-accent px-1">qué tenés que estudiar</span>.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">
+            Subí un ejercicio o un examen y Cuaderno te indica en qué apunte, parcial anterior o
+            libro está la teoría de cada punto. No te da la resolución: te lleva a la fuente.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button size="lg" nativeButton={false} render={<Link href="/sign-up" />}>
+              Empezar gratis
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/sign-in" />}
+            >
+              Ya tengo cuenta
+            </Button>
+          </div>
+        </section>
+
+        <section aria-labelledby="como-funciona" className="border-t py-12">
+          <h2 id="como-funciona" className="text-2xl font-semibold">
+            Cómo funciona
+          </h2>
+          <ol className="mt-6 grid gap-6 md:grid-cols-3">
+            {steps.map((step, index) => (
+              <li key={step.title} className="flex flex-col gap-3">
+                <span className="flex size-10 items-center justify-center rounded-lg bg-secondary text-primary">
+                  <step.icon className="size-5" aria-hidden="true" />
+                </span>
+                <h3 className="text-lg font-semibold">
+                  {index + 1}. {step.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{step.text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </main>
+    </div>
   )
 }
