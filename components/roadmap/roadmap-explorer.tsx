@@ -264,10 +264,10 @@ export function RoadmapExplorer({
         </section>
       )}
 
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_400px] 2xl:items-start">
+      <div className="flex flex-col gap-6">
         <section
           aria-labelledby="map-title"
-          className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 2xl:sticky 2xl:top-4"
+          className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="map-title" className="text-sm font-semibold">
@@ -279,7 +279,7 @@ export function RoadmapExplorer({
             />
           </div>
           <Legend />
-          <div className="max-h-[640px] overflow-auto rounded-lg border bg-background">
+          <div className="h-[80dvh] min-h-[420px] overflow-auto rounded-lg border bg-background">
             <RoadmapGraph
               layout={layout}
               topics={topics}
