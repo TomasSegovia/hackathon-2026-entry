@@ -1,12 +1,24 @@
 'use server'
 
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { draftTopics, extractExercises, type CatalogEntry } from '@/lib/ai/roadmap'
+import {
+  draftTopics,
+  extractExercises,
+  type CatalogEntry,
+  type ExtractedExercise,
+} from '@/lib/ai/roadmap'
 import { findStudySources } from '@/lib/ai/retrieve'
 import { db } from '@/lib/db'
-import { materials, practiceExercises, subjects, subtopics, topics } from '@/lib/db/schema'
+import {
+  chunks,
+  materials,
+  practiceExercises,
+  subjects,
+  subtopics,
+  topics,
+} from '@/lib/db/schema'
 import { UserError, toUserMessage } from '@/lib/errors'
 import { sanitizePrerequisites } from '@/lib/roadmap/graph'
 import { deriveTopicStatus } from '@/lib/roadmap/progress'
@@ -20,7 +32,55 @@ import {
   type Source,
 } from '@/lib/types'
 
-const MAX_PRACTICE_MATERIALS = 6
+const MAX_PRACTICE_GUIDES = 8
+const MAX_EXAMS = 12
+const EXTRACTION_CONCURRENCY = 5
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  run: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await run(items[index])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
+/** Rebuilds each document from its indexed chunks with page markers so exercises can be located. */
+async function loadPagedContent(userId: string, materialIds: string[]) {
+  const result = new Map<string, { text: string; pageCount: number }>()
+  if (materialIds.length === 0) return result
+
+  const rows = await db
+    .select({ materialId: chunks.materialId, page: chunks.page, content: chunks.content })
+    .from(chunks)
+    .where(and(eq(chunks.userId, userId), inArray(chunks.materialId, materialIds)))
+    .orderBy(asc(chunks.materialId), asc(chunks.position))
+
+  const byMaterial = new Map<string, Map<number, string[]>>()
+  for (const row of rows) {
+    if (row.page == null) continue
+    const pages = byMaterial.get(row.materialId) ?? new Map<number, string[]>()
+    pages.set(row.page, [...(pages.get(row.page) ?? []), row.content])
+    byMaterial.set(row.materialId, pages)
+  }
+
+  for (const [materialId, pages] of byMaterial) {
+    const sorted = [...pages.entries()].sort((a, b) => a[0] - b[0])
+    result.set(materialId, {
+      text: sorted.map(([page, parts]) => `<<<PAGINA ${page}>>>\n${parts.join('\n')}`).join('\n\n'),
+      pageCount: sorted[sorted.length - 1][0],
+    })
+  }
+  return result
+}
 
 export async function generateRoadmap(formData: FormData) {
   const userId = await getUserId()
@@ -104,16 +164,25 @@ export async function generateRoadmap(formData: FormData) {
       subtopic.sources = sourcesPerSubtopic[index] ?? []
     })
 
-    const practiceMaterials = library
-      .filter((item) => PRACTICE_KINDS.includes(item.kind as MaterialKind))
-      .slice(0, MAX_PRACTICE_MATERIALS)
-    const extracted = await Promise.all(
-      practiceMaterials.map((item) =>
-        extractExercises({ title: item.title, content: item.content, catalog })
-          .then((exercises) => ({ materialId: item.id, exercises }))
-          .catch(() => ({ materialId: item.id, exercises: [] })),
-      ),
+    const practiceMaterials = [
+      ...library.filter((item) => item.kind === 'practica').slice(0, MAX_PRACTICE_GUIDES),
+      ...library.filter((item) => item.kind === 'examen_anterior').slice(-MAX_EXAMS),
+    ]
+    const pagedContent = await loadPagedContent(
+      userId,
+      practiceMaterials.map((item) => item.id),
     )
+    const extracted = await mapWithConcurrency(practiceMaterials, EXTRACTION_CONCURRENCY, (item) => {
+      const paged = pagedContent.get(item.id)
+      return extractExercises({
+        title: item.title,
+        content: paged?.text ?? item.content,
+        pageCount: paged?.pageCount ?? null,
+        catalog,
+      })
+        .then((exercises) => ({ materialId: item.id, exercises }))
+        .catch(() => ({ materialId: item.id, exercises: [] as ExtractedExercise[] }))
+    })
 
     const exerciseRows = extracted.flatMap(({ materialId, exercises }) =>
       exercises.flatMap((exercise, position) => {
@@ -127,6 +196,8 @@ export async function generateRoadmap(formData: FormData) {
             subtopicId: subtopic.id,
             materialId,
             statement: exercise.statement,
+            label: exercise.label,
+            page: exercise.page,
             position,
           },
         ]

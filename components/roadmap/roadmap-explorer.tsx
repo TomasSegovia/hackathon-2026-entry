@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ListChecks } from 'lucide-react'
 import { DownloadRoadmapButton } from '@/components/roadmap/download-roadmap-button'
+import { ExamsSection } from '@/components/roadmap/exams-section'
 import { RoadmapGraph } from '@/components/roadmap/roadmap-graph'
 import { TopicPanel } from '@/components/roadmap/topic-panel'
 import { Button } from '@/components/ui/button'
@@ -112,7 +113,9 @@ export function RoadmapExplorer({
   const selectedSubtopics = subtopics
     .filter((subtopic) => subtopic.topicId === selectedId)
     .sort((a, b) => a.position - b.position)
-  const selectedExercises = exercises.filter((exercise) => exercise.topicId === selectedId)
+  const selectedExercises = exercises.filter(
+    (exercise) => exercise.topicId === selectedId && exercise.materialKind !== 'examen_anterior',
+  )
 
   const persist = (run: () => Promise<unknown>, rollback: () => void) => {
     setError(null)
@@ -264,10 +267,10 @@ export function RoadmapExplorer({
         </section>
       )}
 
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_400px] 2xl:items-start">
+      <div className="flex flex-col gap-6">
         <section
           aria-labelledby="map-title"
-          className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 2xl:sticky 2xl:top-4"
+          className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="map-title" className="text-sm font-semibold">
@@ -279,7 +282,7 @@ export function RoadmapExplorer({
             />
           </div>
           <Legend />
-          <div className="max-h-[640px] overflow-auto rounded-lg border bg-background">
+          <div className="h-[80dvh] min-h-[420px] overflow-auto rounded-lg border bg-background">
             <RoadmapGraph
               layout={layout}
               topics={topics}
@@ -322,6 +325,7 @@ export function RoadmapExplorer({
           {selected && (
             <TopicPanel
               key={selected.id}
+              subjectId={subjectId}
               topic={selected}
               subtopics={selectedSubtopics}
               exercises={selectedExercises}
@@ -338,6 +342,15 @@ export function RoadmapExplorer({
             />
           )}
         </div>
+
+        <ExamsSection
+          subjectId={subjectId}
+          topics={topics}
+          topicStatus={new Map(topics.map((topic) => [topic.id, topic.status]))}
+          exercises={exercises}
+          onSelectTopic={selectTopic}
+          onExerciseDone={changeExerciseDone}
+        />
       </div>
     </div>
   )

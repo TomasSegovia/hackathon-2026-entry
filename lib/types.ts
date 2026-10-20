@@ -53,6 +53,12 @@ export type ExerciseData = {
   subtopicId: string
   statement: string
   done: boolean
+  materialId: string | null
+  materialTitle: string | null
+  materialKind: string | null
+  /** Numbering of the exercise as it appears in its document, e.g. "Ejercicio 3 b)". */
+  label: string | null
+  page: number | null
 }
 
 export function isMaterialKind(value: string): value is MaterialKind {

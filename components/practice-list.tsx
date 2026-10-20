@@ -10,11 +10,13 @@ import type { ExerciseData } from '@/lib/types'
 export type PracticeExercise = ExerciseData & { topicTitle: string; subtopicTitle: string }
 
 export function PracticeList({
+  subjectId,
   topics,
   exercises: initialExercises,
   lockedCount,
   roadmapHref,
 }: {
+  subjectId: string
   topics: { id: string; title: string }[]
   exercises: PracticeExercise[]
   lockedCount: number
@@ -107,6 +109,7 @@ export function PracticeList({
               .map((exercise) => (
                 <ExerciseRow
                   key={exercise.id}
+                  subjectId={subjectId}
                   exercise={exercise}
                   context={exercise.subtopicTitle}
                   onChange={(done) => toggle(exercise.id, done)}

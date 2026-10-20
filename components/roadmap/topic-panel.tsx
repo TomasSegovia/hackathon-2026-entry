@@ -1,6 +1,8 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import Link from 'next/link'
+import { Check, FileText } from 'lucide-react'
+import { viewerHref } from '@/lib/viewer'
 import { ExerciseRow } from '@/components/exercise-row'
 import { MathText } from '@/components/math-text'
 import { StatusControl } from '@/components/status-control'
@@ -52,6 +54,7 @@ function NeighbourList({
 }
 
 export function TopicPanel({
+  subjectId,
   topic,
   subtopics,
   exercises,
@@ -62,6 +65,7 @@ export function TopicPanel({
   onSubtopicStatus,
   onExerciseDone,
 }: {
+  subjectId: string
   topic: TopicData
   subtopics: SubtopicData[]
   exercises: ExerciseData[]
@@ -145,6 +149,17 @@ export function TopicPanel({
                             ? `Buscalo en ${formatPages(source.pages)}`
                             : missingPagesNote(source.materialKind)}
                         </p>
+                        <Link
+                          href={viewerHref(subjectId, source.materialId, source.pages ?? [])}
+                          target="_blank"
+                          className="mt-1.5 inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          {source.pages && source.pages.length > 0
+                            ? 'Abrir en esa página'
+                            : 'Abrir documento'}
+                          <span className="sr-only"> (se abre en una pestaña nueva)</span>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -171,6 +186,7 @@ export function TopicPanel({
                 {unlocked.map((exercise) => (
                   <ExerciseRow
                     key={exercise.id}
+                    subjectId={subjectId}
                     exercise={exercise}
                     context={subtopicById.get(exercise.subtopicId)?.title ?? topic.title}
                     onChange={(done) => onExerciseDone(exercise.id, done)}

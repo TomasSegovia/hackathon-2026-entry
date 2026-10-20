@@ -194,7 +194,7 @@ export function FceiaPicker({
         failed > 0 &&
           `${failed} no se pudieron procesar; volvé a importar para reintentarlos.`,
         empty > 0 && `${empty} no tenían texto utilizable.`,
-        withoutText > 0 && `${withoutText} son escaneos sin texto y se omitieron.`,
+        withoutText > 0 && `${withoutText} no tienen archivo ni texto y se omitieron.`,
         remaining > 0 && `Quedan ${remaining} por importar: volvé a importar para continuar.`,
       ].filter(Boolean)
 

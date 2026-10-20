@@ -1,18 +1,50 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { FileText } from 'lucide-react'
 import { MathText } from '@/components/math-text'
 import { stripMath } from '@/lib/math'
 import { cn } from '@/lib/utils'
-import type { ExerciseData } from '@/lib/types'
+import { MATERIAL_KINDS, type ExerciseData } from '@/lib/types'
+import { viewerHref } from '@/lib/viewer'
 
 const LONG_STATEMENT = 220
 
+function ExerciseOrigin({ subjectId, exercise }: { subjectId: string; exercise: ExerciseData }) {
+  if (!exercise.materialId || !exercise.materialTitle) return null
+  const kind = MATERIAL_KINDS[exercise.materialKind as keyof typeof MATERIAL_KINDS]
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
+      <p className="min-w-0">
+        {exercise.label && (
+          <span className="font-medium text-foreground">{exercise.label} · </span>
+        )}
+        {exercise.materialTitle}
+        {kind && <span> ({kind})</span>}
+        {exercise.page && <span> · pág. {exercise.page}</span>}
+      </p>
+      <Link
+        href={viewerHref(subjectId, exercise.materialId, exercise.page ? [exercise.page] : [])}
+        target="_blank"
+        className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
+      >
+        <FileText className="size-3.5" aria-hidden="true" />
+        Ver en el documento
+        <span className="sr-only"> (se abre en una pestaña nueva)</span>
+      </Link>
+    </div>
+  )
+}
+
 export function ExerciseRow({
+  subjectId,
   exercise,
   context,
   onChange,
 }: {
+  subjectId: string
   exercise: ExerciseData
   context: string
   onChange: (done: boolean) => void
@@ -52,6 +84,7 @@ export function ExerciseRow({
             {expanded ? 'Ver menos' : 'Ver completo'}
           </button>
         )}
+        <ExerciseOrigin subjectId={subjectId} exercise={exercise} />
       </div>
     </li>
   )

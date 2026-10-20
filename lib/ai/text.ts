@@ -1,5 +1,6 @@
 import 'server-only'
 import { extractText, getDocumentProxy } from 'unpdf'
+import { ocrImage, ocrPdf } from '@/lib/ai/ocr'
 
 export const MAX_FILE_BYTES = 8 * 1024 * 1024
 
@@ -11,10 +12,35 @@ export type ParsedDocument = {
   pages: string[] | null
 }
 
+const IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+}
+
+const MIN_TEXT_CHARS = 100
+const MIN_CHARS_PER_PAGE = 40
+
 export async function extractPdfPages(bytes: Uint8Array): Promise<string[]> {
-  const pdf = await getDocumentProxy(bytes)
+  // unpdf may detach the buffer, so it gets a copy and the caller keeps the original bytes.
+  const pdf = await getDocumentProxy(bytes.slice())
   const { text } = await extractText(pdf, { mergePages: false })
   return text.map(normalize)
+}
+
+/** True when a PDF has no usable text layer, as happens with scans. */
+export function lacksText(pages: string[]) {
+  const total = pages.reduce((sum, page) => sum + page.length, 0)
+  return total < MIN_TEXT_CHARS || total / Math.max(pages.length, 1) < MIN_CHARS_PER_PAGE
+}
+
+/** Reads the PDF text layer and falls back to OCR for scanned documents. */
+export async function extractPdfPagesWithOcr(bytes: Uint8Array): Promise<string[]> {
+  const pages = await extractPdfPages(bytes)
+  if (!lacksText(pages)) return pages
+  const scanned = (await ocrPdf(bytes, pages.length)).map(normalize)
+  return scanned.join('').length > pages.join('').length ? scanned : pages
 }
 
 /** Keeps whole pages from the start until the character budget is reached. */
@@ -37,15 +63,22 @@ export async function extractDocumentFromFile(file: File): Promise<ParsedDocumen
   const name = file.name.toLowerCase()
 
   if (name.endsWith('.pdf') || file.type === 'application/pdf') {
-    const pages = await extractPdfPages(new Uint8Array(await file.arrayBuffer()))
+    const pages = await extractPdfPagesWithOcr(new Uint8Array(await file.arrayBuffer()))
     return { text: pages.join('\n\n').trim(), pages }
+  }
+
+  const extension = Object.keys(IMAGE_TYPES).find((ext) => name.endsWith(ext))
+  const imageType = file.type.startsWith('image/') ? file.type : extension && IMAGE_TYPES[extension]
+  if (imageType) {
+    const text = normalize(await ocrImage(new Uint8Array(await file.arrayBuffer()), imageType))
+    return { text, pages: [text] }
   }
 
   if (file.type.startsWith('text/') || TEXT_EXTENSIONS.some((ext) => name.endsWith(ext))) {
     return { text: normalize(await file.text()), pages: null }
   }
 
-  throw new Error('Formato no soportado todavía. Subí un PDF o un archivo de texto.')
+  throw new Error('Formato no soportado todavía. Subí un PDF, una imagen o un archivo de texto.')
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {

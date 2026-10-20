@@ -1,7 +1,8 @@
 import 'server-only'
 import { and, eq, isNotNull } from 'drizzle-orm'
 import { saveMaterial } from '@/lib/ai/ingest'
-import { extractPdfPages, extractTextFromFile, truncatePages } from '@/lib/ai/text'
+import { ocrPdf } from '@/lib/ai/ocr'
+import { extractPdfPages, extractTextFromFile, lacksText, truncatePages } from '@/lib/ai/text'
 import { db } from '@/lib/db'
 import { chunks, materials, subjects } from '@/lib/db/schema'
 import { classifyBooks } from '@/lib/fceia/books'
@@ -22,6 +23,7 @@ import type { MaterialKind } from '@/lib/types'
 /** Weight budget per request, so a single request never exceeds the server time limit. */
 const BATCH_BUDGET = 12
 const BOOK_WEIGHT = 6
+const OCR_WEIGHT = 3
 const CONCURRENCY = 3
 const MAX_DOCUMENT_CHARS = 60_000
 const MAX_DOCUMENT_PDF_BYTES = 25 * 1024 * 1024
@@ -103,11 +105,17 @@ async function loadDocument(options: {
         timeoutMs: options.timeoutMs,
       })
       if (bytes) {
-        const pages = truncatePages(await extractPdfPages(bytes), options.maxChars)
+        const rawPages = await extractPdfPages(bytes)
+        const pages = truncatePages(rawPages, options.maxChars)
         const text = pages.join('\n\n').trim()
         const comparable = Math.min(apiText.length, options.maxChars)
         if (text.length >= MIN_DOCUMENT_CHARS && text.length >= comparable * 0.5) {
           return { text, pages }
+        }
+        if (apiText.length < MIN_DOCUMENT_CHARS && lacksText(rawPages)) {
+          const scanned = truncatePages(await ocrPdf(bytes, rawPages.length), options.maxChars)
+          const scannedText = scanned.join('\n\n').trim()
+          if (scannedText.length >= MIN_DOCUMENT_CHARS) return { text: scannedText, pages: scanned }
         }
       }
     } catch (error) {
@@ -297,23 +305,24 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
         .map((item) => item.id)
     : input.bookIds
 
+  // Scans are read with OCR from their PDF, so only those without a file are left out.
   const withoutText = initial
-    ? materialList.filter((item) => !item.has_text && !bookIds.has(item.id)).length +
-      examList.filter((item) => !item.has_text).length
+    ? materialList.filter((item) => !item.has_text && !item.url && !bookIds.has(item.id)).length +
+      examList.filter((item) => !item.has_text && !item.file_url).length
     : 0
 
   const studyCandidates: Candidate[] = include.materials
     ? materialList
-        .filter((item) => item.has_text && !bookIds.has(item.id))
+        .filter((item) => (item.has_text || item.url) && !bookIds.has(item.id))
         .map((item) => ({
           key: `fceia:material:${item.id}`,
           title: item.title.replace(/\.pdf$/i, ''),
           kind: item.kind === 'practica' ? ('practica' as const) : ('apunte' as const),
-          weight: 1,
+          weight: item.has_text ? 1 : OCR_WEIGHT,
           load: () =>
             loadDocument({
               filePath: item.url,
-              apiText: () => getMaterialText(item.id),
+              apiText: () => (item.has_text ? getMaterialText(item.id) : Promise.resolve('')),
               maxChars: MAX_DOCUMENT_CHARS,
               maxBytes: MAX_DOCUMENT_PDF_BYTES,
               timeoutMs: 25_000,
@@ -322,17 +331,17 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
     : []
 
   const examCandidates: Candidate[] = examList
-    .filter((item) => item.has_text)
+    .filter((item) => item.has_text || item.file_url)
     .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
     .map((item) => ({
       key: `fceia:exam:${item.id}`,
       title: item.title,
       kind: 'examen_anterior' as const,
-      weight: 1,
+      weight: item.has_text ? 1 : OCR_WEIGHT,
       load: () =>
         loadDocument({
           filePath: item.file_url,
-          apiText: () => getExamText(item.id),
+          apiText: () => (item.has_text ? getExamText(item.id) : Promise.resolve('')),
           maxChars: MAX_DOCUMENT_CHARS,
           maxBytes: MAX_DOCUMENT_PDF_BYTES,
           timeoutMs: 25_000,
