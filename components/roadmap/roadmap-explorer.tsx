@@ -113,9 +113,7 @@ export function RoadmapExplorer({
   const selectedSubtopics = subtopics
     .filter((subtopic) => subtopic.topicId === selectedId)
     .sort((a, b) => a.position - b.position)
-  const selectedExercises = exercises.filter(
-    (exercise) => exercise.topicId === selectedId && exercise.materialKind !== 'examen_anterior',
-  )
+  const selectedExercises = exercises.filter((exercise) => exercise.topicId === selectedId)
 
   const persist = (run: () => Promise<unknown>, rollback: () => void) => {
     setError(null)
@@ -349,7 +347,6 @@ export function RoadmapExplorer({
           topicStatus={new Map(topics.map((topic) => [topic.id, topic.status]))}
           exercises={exercises}
           onSelectTopic={selectTopic}
-          onExerciseDone={changeExerciseDone}
         />
       </div>
     </div>

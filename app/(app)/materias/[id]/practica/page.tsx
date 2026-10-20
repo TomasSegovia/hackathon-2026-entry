@@ -36,8 +36,7 @@ export default async function PracticePage({ params }: { params: Promise<{ id: s
   const topicTitle = new Map(topicRows.map((topic) => [topic.id, topic.title]))
   const subtopicById = new Map(subtopicRows.map((subtopic) => [subtopic.id, subtopic]))
 
-  const practiceRows = exerciseRows.filter((exercise) => exercise.materialKind !== 'examen_anterior')
-  const unlocked: PracticeExercise[] = practiceRows
+  const unlocked: PracticeExercise[] = exerciseRows
     .filter((exercise) => subtopicById.get(exercise.subtopicId)?.status === 'done')
     .map((exercise) => ({
       ...exercise,
@@ -66,7 +65,7 @@ export default async function PracticePage({ params }: { params: Promise<{ id: s
         subjectId={id}
         topics={topicRows}
         exercises={unlocked}
-        lockedCount={practiceRows.length - unlocked.length}
+        lockedCount={exerciseRows.length - unlocked.length}
         roadmapHref={`/materias/${id}/roadmap`}
       />
     </div>

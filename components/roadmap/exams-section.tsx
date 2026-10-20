@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { CheckCircle2, FileText, Lock } from 'lucide-react'
 import { MathText } from '@/components/math-text'
-import { stripMath } from '@/lib/math'
 import { cn } from '@/lib/utils'
 import type { ExerciseData, ProgressStatus, TopicData } from '@/lib/types'
 import { viewerHref } from '@/lib/viewer'
@@ -21,14 +20,12 @@ export function ExamsSection({
   topicStatus,
   exercises,
   onSelectTopic,
-  onExerciseDone,
 }: {
   subjectId: string
   topics: TopicData[]
   topicStatus: Map<string, ProgressStatus>
   exercises: ExerciseData[]
   onSelectTopic: (topicId: string) => void
-  onExerciseDone: (exerciseId: string, done: boolean) => void
 }) {
   const topicById = new Map(topics.map((topic) => [topic.id, topic]))
   const exams = new Map<string, Exam>()
@@ -73,7 +70,8 @@ export function ExamsSection({
         </p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Un examen queda listo cuando terminaste todos los temas que toma.
+        Sus ejercicios también aparecen en cada tema. Un examen queda listo cuando terminaste todos
+        los temas que toma.
       </p>
       <ul className="flex flex-col gap-2">
         {sorted.map((exam) => {
@@ -121,27 +119,23 @@ export function ExamsSection({
                   )}
                   <ol className="flex flex-col gap-2">
                     {exam.exercises.map((exercise) => (
-                      <li key={exercise.id} className="flex gap-3 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={exercise.done}
-                          onChange={(event) => onExerciseDone(exercise.id, event.target.checked)}
-                          aria-label={`Marcar como resuelto: ${exercise.label ?? stripMath(exercise.statement).slice(0, 60)}`}
-                          className="mt-1 size-4 shrink-0 accent-primary"
-                        />
-                        <div className="min-w-0 flex-1">
+                      <li key={exercise.id} className="text-sm">
+                        <p className="text-xs text-muted-foreground">
                           {exercise.label && (
-                            <p className="text-xs font-medium">{exercise.label}</p>
+                            <span className="font-medium text-foreground">{exercise.label} · </span>
                           )}
-                          <p
-                            className={cn(
-                              'line-clamp-3 leading-relaxed',
-                              exercise.done && 'text-muted-foreground line-through decoration-1',
-                            )}
+                          <button
+                            type="button"
+                            onClick={() => onSelectTopic(exercise.topicId)}
+                            className="underline-offset-2 hover:underline"
                           >
-                            <MathText text={exercise.statement} />
-                          </p>
-                        </div>
+                            {topicById.get(exercise.topicId)?.title ?? 'Tema'}
+                          </button>
+                          {exercise.done && ' · resuelto'}
+                        </p>
+                        <p className="line-clamp-2 leading-relaxed">
+                          <MathText text={exercise.statement} />
+                        </p>
                       </li>
                     ))}
                   </ol>
