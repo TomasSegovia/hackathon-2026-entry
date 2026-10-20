@@ -6,7 +6,6 @@ const GAP_Y = 20
 const PAD_X = 20
 const PAD_Y = 16
 const LANE_GAP = 14
-const LABEL_H = 28
 const ISOLATED_COLUMNS = 4
 
 export type LayoutInput = {
@@ -87,7 +86,6 @@ export function layoutRoadmap(input: LayoutInput[]): RoadmapLayout {
 
   const positions = new Map<string, { x: number; y: number }>()
   const lanes: LayoutLane[] = []
-  const labelled = connected.length + (isolated.length > 0 ? 1 : 0) > 1
   let cursorY = PAD_Y
   let contentWidth = 0
 
@@ -124,7 +122,7 @@ export function layoutRoadmap(input: LayoutInput[]): RoadmapLayout {
 
     const rows = Math.max(...layers.map((layer) => layer.length))
     const bodyHeight = rows * NODE_H + (rows - 1) * GAP_Y
-    const top = cursorY + (labelled ? LABEL_H : 0)
+    const top = cursorY
 
     layers.forEach((layer, layerIndex) => {
       const offset = ((rows - layer.length) * (NODE_H + GAP_Y)) / 2
@@ -136,8 +134,8 @@ export function layoutRoadmap(input: LayoutInput[]): RoadmapLayout {
       })
     })
 
-    const laneHeight = (labelled ? LABEL_H : 0) + bodyHeight + 24
-    lanes.push({ y: cursorY, height: laneHeight, label: labelled ? `Línea ${laneIndex + 1}` : null })
+    const laneHeight = bodyHeight + 24
+    lanes.push({ y: cursorY, height: laneHeight, label: null })
     contentWidth = Math.max(contentWidth, PAD_X * 2 + layers.length * NODE_W + (layers.length - 1) * GAP_X)
     cursorY += laneHeight + LANE_GAP
   })
@@ -145,19 +143,15 @@ export function layoutRoadmap(input: LayoutInput[]): RoadmapLayout {
   if (isolated.length > 0) {
     const columns = Math.min(ISOLATED_COLUMNS, isolated.length)
     const rows = Math.ceil(isolated.length / columns)
-    const top = cursorY + (labelled ? LABEL_H : 0)
+    const top = cursorY
     isolated.forEach((id, index) => {
       positions.set(id, {
         x: PAD_X + (index % columns) * (NODE_W + GAP_X),
         y: top + 12 + Math.floor(index / columns) * (NODE_H + GAP_Y),
       })
     })
-    const laneHeight = (labelled ? LABEL_H : 0) + rows * NODE_H + (rows - 1) * GAP_Y + 24
-    lanes.push({
-      y: cursorY,
-      height: laneHeight,
-      label: labelled ? 'Temas independientes' : null,
-    })
+    const laneHeight = rows * NODE_H + (rows - 1) * GAP_Y + 24
+    lanes.push({ y: cursorY, height: laneHeight, label: null })
     contentWidth = Math.max(contentWidth, PAD_X * 2 + columns * NODE_W + (columns - 1) * GAP_X)
     cursorY += laneHeight + LANE_GAP
   }
