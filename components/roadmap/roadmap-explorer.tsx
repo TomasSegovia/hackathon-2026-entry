@@ -291,8 +291,8 @@ export function RoadmapExplorer({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Las flechas van del tema que conviene saber primero al que lo necesita. Los temas en
-            líneas distintas son independientes entre sí.
+            Las flechas van del tema que conviene saber primero al que lo necesita. Los temas sin
+            flechas entre sí son independientes.
           </p>
           <details className="rounded-lg border bg-card px-4 py-3 text-xs text-muted-foreground">
             <summary className="cursor-pointer text-sm font-medium text-foreground">

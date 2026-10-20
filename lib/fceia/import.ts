@@ -256,6 +256,13 @@ async function importBibliography(
   }
 }
 
+// The API labels some exercise sheets as "apuntes" (e.g. "prac-relaciones"), so the title also counts.
+const PRACTICE_TITLE = /\bpr[aá]c(t|tica|ticas)?\b|ejercicio|ejercitaci[oó]n|trabajo pr[aá]ctico|\btp\s*\d|\bgu[ií]a\b/i
+
+function isPractice(item: { kind: string; title: string }) {
+  return item.kind === 'practica' || PRACTICE_TITLE.test(item.title)
+}
+
 /** Imports one batch of FCEIA documents; the client repeats it until nothing remains. */
 export async function importBatch(input: ImportInput): Promise<BatchResult> {
   const { userId, subjectId, fceiaSubjectId, refresh } = input
@@ -317,7 +324,7 @@ export async function importBatch(input: ImportInput): Promise<BatchResult> {
         .map((item) => ({
           key: `fceia:material:${item.id}`,
           title: item.title.replace(/\.pdf$/i, ''),
-          kind: item.kind === 'practica' ? ('practica' as const) : ('apunte' as const),
+          kind: isPractice(item) ? ('practica' as const) : ('apunte' as const),
           weight: item.has_text ? 1 : OCR_WEIGHT,
           load: () =>
             loadDocument({
