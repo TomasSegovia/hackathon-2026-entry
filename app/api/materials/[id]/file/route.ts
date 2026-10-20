@@ -9,13 +9,24 @@ export const maxDuration = 60
 
 const KEY_PATTERN = /^fceia:(material|exam):(\d+)$/
 
-function contentDisposition(filename: string) {
-  const name = /\.[a-z0-9]{2,4}$/i.test(filename) ? filename : `${filename}.pdf`
-  const ascii = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\- ]+/g, '_')
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+function withExtension(filename: string) {
+  return /\.[a-z0-9]{2,4}$/i.test(filename) ? filename : `${filename}.pdf`
 }
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+function contentDisposition(name: string, inline: boolean) {
+  const ascii = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\- ]+/g, '_')
+  const type = inline ? 'inline' : 'attachment'
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+}
+
+function contentType(upstreamType: string | null, name: string) {
+  const isGeneric = !upstreamType || upstreamType.startsWith('application/octet-stream')
+  if (isGeneric && /\.pdf$/i.test(name)) return 'application/pdf'
+  return upstreamType ?? 'application/pdf'
+}
+
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const inline = request.nextUrl.searchParams.get('inline') === '1'
   let userId: string
   try {
     userId = await getUserId()
@@ -46,9 +57,10 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: 'No pude descargar el archivo.' }, { status: 502 })
     }
 
+    const name = withExtension(info.filename)
     const headers = new Headers({
-      'Content-Type': upstream.headers.get('content-type') ?? 'application/pdf',
-      'Content-Disposition': contentDisposition(info.filename),
+      'Content-Type': contentType(upstream.headers.get('content-type'), name),
+      'Content-Disposition': contentDisposition(name, inline),
       'Cache-Control': 'private, max-age=3600',
     })
     const length = upstream.headers.get('content-length')

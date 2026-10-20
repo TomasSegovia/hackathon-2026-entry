@@ -80,6 +80,8 @@ export const practiceExercises = pgTable('practice_exercises', {
   subtopicId: text('subtopicId').notNull(),
   materialId: text('materialId'),
   statement: text('statement').notNull(),
+  label: text('label'),
+  page: integer('page'),
   position: integer('position').notNull().default(0),
   done: boolean('done').notNull().default(false),
 })

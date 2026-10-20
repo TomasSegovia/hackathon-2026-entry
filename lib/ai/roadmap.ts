@@ -93,6 +93,16 @@ const exercisesSchema = z.object({
     .array(
       z.object({
         statement: z.string().describe('Enunciado completo del ejercicio, copiado fielmente'),
+        label: z
+          .string()
+          .describe(
+            'Numeración del ejercicio tal como figura en el documento, por ejemplo "Ejercicio 3 b)", "Problema 2" o "Hoja 1, Ej. 4". Cadena vacía si no tiene numeración.',
+          ),
+        page: z
+          .number()
+          .int()
+          .nullable()
+          .describe('Número de la marca <<<PAGINA n>>> donde empieza el ejercicio, o null si no hay marcas'),
         subtopicIndex: z
           .number()
           .int()
@@ -104,11 +114,19 @@ const exercisesSchema = z.object({
 
 export type CatalogEntry = { index: number; label: string }
 
+export type ExtractedExercise = {
+  statement: string
+  label: string | null
+  page: number | null
+  subtopicIndex: number
+}
+
 export async function extractExercises(input: {
   title: string
   content: string
+  pageCount: number | null
   catalog: CatalogEntry[]
-}): Promise<{ statement: string; subtopicIndex: number }[]> {
+}): Promise<ExtractedExercise[]> {
   const { output } = await generateText({
     model: exerciseModel,
     output: Output.object({ schema: exercisesSchema }),
@@ -117,6 +135,7 @@ export async function extractExercises(input: {
       'Cada ejercicio o inciso independiente es un elemento. Copiá el enunciado fielmente, sin resolverlo y sin agregar pistas.',
       'Asigná cada ejercicio al subtema del catálogo que representa el concepto principal que hay que dominar para resolverlo.',
       'Ignorá resoluciones, soluciones, encabezados y texto que no sea un ejercicio.',
+      'Para cada ejercicio indicá su numeración tal como aparece (incluyendo el inciso si lo separaste) y la página: el documento viene dividido con marcas <<<PAGINA n>>>; usá el n de la marca bajo la que empieza el ejercicio.',
       'Reescribí toda fórmula o expresión matemática del enunciado en LaTeX entre signos de dólar ($x^2$ en línea, $$...$$ en bloque), reconstruyendo fracciones, potencias, sumatorias y símbolos que el texto extraído del PDF haya desarmado.',
     ].join(' '),
     prompt: [
@@ -125,9 +144,15 @@ export async function extractExercises(input: {
     ].join('\n\n'),
   })
 
+  const maxPage = input.pageCount
   return output.exercises
     .map((exercise) => ({
       statement: exercise.statement.trim().slice(0, 2000),
+      label: exercise.label.trim().slice(0, 80) || null,
+      page:
+        maxPage && exercise.page && exercise.page >= 1 && exercise.page <= maxPage
+          ? exercise.page
+          : null,
       subtopicIndex: exercise.subtopicIndex,
     }))
     .filter((exercise) => exercise.statement.length > 5)

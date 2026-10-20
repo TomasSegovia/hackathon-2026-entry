@@ -4,7 +4,8 @@ import { and, asc, eq } from 'drizzle-orm'
 import { ArrowLeft } from 'lucide-react'
 import { PracticeList, type PracticeExercise } from '@/components/practice-list'
 import { db } from '@/lib/db'
-import { practiceExercises, subjects, subtopics, topics } from '@/lib/db/schema'
+import { subjects, subtopics, topics } from '@/lib/db/schema'
+import { loadExercises } from '@/lib/exercises'
 import { requireUser } from '@/lib/session'
 
 export default async function PracticePage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,17 +28,7 @@ export default async function PracticePage({ params }: { params: Promise<{ id: s
       .select({ id: subtopics.id, title: subtopics.title, status: subtopics.status })
       .from(subtopics)
       .where(and(eq(subtopics.subjectId, id), eq(subtopics.userId, user.id))),
-    db
-      .select({
-        id: practiceExercises.id,
-        topicId: practiceExercises.topicId,
-        subtopicId: practiceExercises.subtopicId,
-        statement: practiceExercises.statement,
-        done: practiceExercises.done,
-      })
-      .from(practiceExercises)
-      .where(and(eq(practiceExercises.subjectId, id), eq(practiceExercises.userId, user.id)))
-      .orderBy(asc(practiceExercises.position)),
+    loadExercises(id, user.id),
   ])
 
   if (topicRows.length === 0) redirect(`/materias/${id}`)
@@ -71,6 +62,7 @@ export default async function PracticePage({ params }: { params: Promise<{ id: s
         </div>
       </div>
       <PracticeList
+        subjectId={id}
         topics={topicRows}
         exercises={unlocked}
         lockedCount={exerciseRows.length - unlocked.length}

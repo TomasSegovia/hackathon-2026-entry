@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ListChecks } from 'lucide-react'
 import { DownloadRoadmapButton } from '@/components/roadmap/download-roadmap-button'
+import { ExamsSection } from '@/components/roadmap/exams-section'
 import { RoadmapGraph } from '@/components/roadmap/roadmap-graph'
 import { TopicPanel } from '@/components/roadmap/topic-panel'
 import { Button } from '@/components/ui/button'
@@ -322,6 +323,7 @@ export function RoadmapExplorer({
           {selected && (
             <TopicPanel
               key={selected.id}
+              subjectId={subjectId}
               topic={selected}
               subtopics={selectedSubtopics}
               exercises={selectedExercises}
@@ -338,6 +340,14 @@ export function RoadmapExplorer({
             />
           )}
         </div>
+
+        <ExamsSection
+          subjectId={subjectId}
+          topics={topics}
+          topicStatus={new Map(topics.map((topic) => [topic.id, topic.status]))}
+          exercises={exercises}
+          onSelectTopic={selectTopic}
+        />
       </div>
     </div>
   )

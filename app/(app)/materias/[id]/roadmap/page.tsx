@@ -4,7 +4,8 @@ import { and, asc, eq } from 'drizzle-orm'
 import { ArrowLeft } from 'lucide-react'
 import { RoadmapExplorer } from '@/components/roadmap/roadmap-explorer'
 import { db } from '@/lib/db'
-import { practiceExercises, subjects, subtopics, topics } from '@/lib/db/schema'
+import { subjects, subtopics, topics } from '@/lib/db/schema'
+import { loadExercises } from '@/lib/exercises'
 import { requireUser } from '@/lib/session'
 
 export default async function RoadmapPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,17 +43,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ id: st
       .from(subtopics)
       .where(and(eq(subtopics.subjectId, id), eq(subtopics.userId, user.id)))
       .orderBy(asc(subtopics.position)),
-    db
-      .select({
-        id: practiceExercises.id,
-        topicId: practiceExercises.topicId,
-        subtopicId: practiceExercises.subtopicId,
-        statement: practiceExercises.statement,
-        done: practiceExercises.done,
-      })
-      .from(practiceExercises)
-      .where(and(eq(practiceExercises.subjectId, id), eq(practiceExercises.userId, user.id)))
-      .orderBy(asc(practiceExercises.position)),
+    loadExercises(id, user.id),
   ])
 
   if (topicRows.length === 0) redirect(`/materias/${id}`)
