@@ -29,12 +29,12 @@ export function MaterialForm({ subjectId }: { subjectId: string }) {
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="material-file">Archivo (PDF o texto)</Label>
+        <Label htmlFor="material-file">Archivo (PDF, imagen o texto)</Label>
         <Input
           id="material-file"
           name="file"
           type="file"
-          accept=".pdf,.txt,.md,.markdown,.csv,.tex,application/pdf,text/*"
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.markdown,.csv,.tex,application/pdf,image/png,image/jpeg,image/webp,text/*"
         />
       </div>
       <div className="flex flex-col gap-2">
